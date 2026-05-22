@@ -142,6 +142,28 @@ em { font-style: italic; }
 }
 .lang-toggle-active { color: var(--accent); font-weight: 600; }
 .lang-toggle-sep { opacity: 0.4; }
+.auth-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: none;
+  border: 1px solid color-mix(in oklab, var(--ink) 14%, transparent);
+  padding: 5px 10px; border-radius: 6px;
+  font-size: 11px; letter-spacing: 0.04em;
+  font-family: var(--mono);
+  color: color-mix(in oklab, var(--ink) 65%, transparent);
+  white-space: nowrap;
+  &:hover { border-color: var(--accent); color: var(--accent); }
+}
+.auth-btn--user { padding: 4px 8px 4px 4px; }
+.auth-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent);
+  color: var(--paper);
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700;
+  flex-shrink: 0;
+}
+.auth-avatar--img { object-fit: cover; }
+.auth-signout { font-size: 10px; }
 .site-header-rule {
   height: 1px;
   background: linear-gradient(to right, transparent, color-mix(in oklab, var(--accent) 30%, transparent), transparent);

@@ -1,6 +1,7 @@
 import { Component, inject, computed } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { LangService } from '../../core/lang.service';
+import { AuthService } from '../../core/auth.service';
 import { I18N } from '../../core/i18n.tokens';
 
 @Component({
@@ -37,6 +38,18 @@ import { I18N } from '../../core/i18n.tokens';
             <span class="lang-toggle-sep">/</span>
             <span class="lang-toggle-other">{{ langSvc.lang() === 'en' ? 'PT' : 'EN' }}</span>
           </button>
+          @if (authSvc.user()) {
+            <button class="auth-btn auth-btn--user" (click)="authSvc.logout()" [title]="authSvc.user()!.email">
+              @if (authSvc.user()!.picture) {
+                <img class="auth-avatar auth-avatar--img" [src]="authSvc.user()!.picture!" [alt]="authSvc.user()!.name" />
+              } @else {
+                <span class="auth-avatar">{{ authSvc.user()!.name[0].toUpperCase() }}</span>
+              }
+              <span class="auth-signout">Sign out</span>
+            </button>
+          } @else {
+            <button class="auth-btn" (click)="authSvc.login()">Sign in</button>
+          }
         </div>
       </div>
       <div class="site-header-rule" aria-hidden="true"></div>
@@ -45,6 +58,7 @@ import { I18N } from '../../core/i18n.tokens';
 })
 export class HeaderComponent {
   langSvc = inject(LangService);
+  authSvc = inject(AuthService);
   private router = inject(Router);
 
   i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);

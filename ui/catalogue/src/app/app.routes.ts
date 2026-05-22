@@ -6,9 +6,11 @@ import { SearchViewComponent } from './catalogue/search-view/search-view.compone
 import { AuthorViewComponent } from './catalogue/author-view/author-view.component';
 import { SubjectViewComponent } from './catalogue/subject-view/subject-view.component';
 import { BookDetailComponent } from './catalogue/book-detail/book-detail.component';
+import { CallbackComponent } from './catalogue/callback/callback.component';
 
 export const routes: Routes = [
   { path: '', component: HomePageComponent },
+  { path: 'callback', component: CallbackComponent },
   { path: 'authors', component: AuthorIndexComponent },
   { path: 'subjects', component: SubjectTilesComponent },
   { path: 'search', component: SearchViewComponent },
