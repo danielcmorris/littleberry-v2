@@ -4,6 +4,46 @@ import { Observable, map, tap } from 'rxjs';
 import { Book } from './book.model';
 import { Subject } from './subject.model';
 
+export interface BookEditData {
+  holding: {
+    id: string; callNumber: string; prefix: string; bookNumber: string;
+    bookId: number | null; barcode: string | null; location: string | null;
+    copyNotes: string | null; availabilityStatus: string | null;
+    acquisitionDate: string | null; coverUrl: string | null; subjectId: string | null;
+  };
+  work: {
+    id: string; title: string; subtitle: string | null; normalizedTitle: string | null;
+    language: string | null; description: string | null; workType: string | null; series: string | null;
+  };
+  edition: {
+    id: string; publicationYear: number | null; language: string | null;
+    isbn10: string | null; isbn13: string | null; lccn: string | null; oclc: string | null;
+    pageCount: number | null; physicalDescription: string | null;
+  };
+  publisher: { id: string; name: string | null; place: string | null } | null;
+  authors: { id: string; name: string; ord: number | null; role: string | null }[];
+  subject: { id: string; term: string; prefix: string } | null;
+  digitalCopies: { id: string; provider: string | null; url: string; format: string | null; verified: boolean | null; access: string | null }[];
+  media: { id: string; type: string | null; url: string | null; localPath: string | null; caption: string | null }[];
+  enrichment: any;
+}
+
+export interface BookUpdateDto {
+  title: string; subtitle: string | null; description: string | null;
+  workType: string | null; series: string | null;
+  publicationYear: number | null; language: string | null;
+  isbn10: string | null; isbn13: string | null; lccn: string | null; oclc: string | null;
+  pageCount: number | null; physicalDescription: string | null;
+  publisherName: string | null; publisherPlace: string | null;
+  location: string | null; barcode: string | null; copyNotes: string | null;
+  availabilityStatus: string | null; acquisitionDate: string | null; coverUrl: string | null;
+  subjectId: string | null; callNumber: string | null; prefix: string | null; bookNumber: string | null;
+}
+
+export interface DigitalCopyDto {
+  provider: string; url: string; format: string; access: string;
+}
+
 const API = 'http://localhost:5200/api';
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -72,6 +112,7 @@ export class BooksService {
   loadSubjects(): Observable<Subject[]> {
     return this.http.get<any[]>(`${API}/subjects`).pipe(
       map(rows => rows.map(r => ({
+        id: r.id,
         key: r.term,
         pt: r.term,
         prefix: r.prefix ?? '',
@@ -105,5 +146,34 @@ export class BooksService {
     return this.http.get<any>(`${API}/books/${encodeURIComponent(callNumber)}`).pipe(
       map(mapBook)
     );
+  }
+
+  getBookForEdit(callNumber: string): Observable<BookEditData> {
+    return this.http.get<BookEditData>(`${API}/books/${encodeURIComponent(callNumber)}/edit`);
+  }
+
+  updateBook(callNumber: string, data: BookUpdateDto): Observable<void> {
+    return this.http.put<void>(`${API}/books/${encodeURIComponent(callNumber)}`, data);
+  }
+
+  addDigitalCopy(callNumber: string, copy: DigitalCopyDto): Observable<void> {
+    return this.http.post<void>(`${API}/books/${encodeURIComponent(callNumber)}/digital`, copy);
+  }
+
+  deleteDigitalCopy(callNumber: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${API}/books/${encodeURIComponent(callNumber)}/digital/${id}`);
+  }
+
+  uploadCover(callNumber: string, file: File | null, url?: string): Observable<{ coverUrl: string }> {
+    const fd = new FormData();
+    if (file) fd.append('file', file);
+    if (url) fd.append('url', url);
+    return this.http.post<{ coverUrl: string }>(`${API}/books/${encodeURIComponent(callNumber)}/cover`, fd);
+  }
+
+  uploadFile(callNumber: string, file: File): Observable<{ url: string }> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return this.http.post<{ url: string }>(`${API}/books/${encodeURIComponent(callNumber)}/files`, fd);
   }
 }

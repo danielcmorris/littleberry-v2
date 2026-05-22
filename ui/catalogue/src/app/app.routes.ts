@@ -6,7 +6,9 @@ import { SearchViewComponent } from './catalogue/search-view/search-view.compone
 import { AuthorViewComponent } from './catalogue/author-view/author-view.component';
 import { SubjectViewComponent } from './catalogue/subject-view/subject-view.component';
 import { BookDetailComponent } from './catalogue/book-detail/book-detail.component';
+import { BookEditComponent } from './catalogue/book-edit/book-edit.component';
 import { CallbackComponent } from './catalogue/callback/callback.component';
+import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: HomePageComponent },
@@ -16,5 +18,6 @@ export const routes: Routes = [
   { path: 'search', component: SearchViewComponent },
   { path: 'author/:author', component: AuthorViewComponent },
   { path: 'subject/:subject', component: SubjectViewComponent },
+  { path: ':prefix/:bookNumber/edit', component: BookEditComponent, canActivate: [authGuard] },
   { path: ':prefix/:bookNumber', component: BookDetailComponent },
 ];

@@ -631,33 +631,82 @@ em { font-style: italic; }
 }
 
 /* ───── Author index ───── */
+.author-alpha-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 36px;
+  padding: 12px 16px;
+  background: color-mix(in oklab, var(--accent) 5%, var(--paper));
+  border: 1px solid color-mix(in oklab, var(--accent) 14%, transparent);
+  border-radius: 8px;
+}
+.author-alpha-link {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid color-mix(in oklab, var(--accent) 22%, transparent);
+  transition: background .15s, color .15s, border-color .15s;
+  &:hover {
+    background: var(--accent);
+    color: var(--paper);
+    border-color: var(--accent);
+  }
+}
 .author-index {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 36px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
 }
 .author-letter-block {
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 8px;
-  align-items: start;
+  display: block;
+  scroll-margin-top: 80px;
+}
+.author-letter-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  margin-bottom: 12px;
 }
 .author-letter {
   font-family: var(--serif);
-  font-size: 56px;
+  font-size: 32px;
   line-height: 1;
   font-weight: 500;
   color: var(--accent);
-  border-right: 1px solid color-mix(in oklab, var(--accent) 25%, transparent);
-  padding-right: 16px;
-  text-align: center;
+  padding-bottom: 8px;
 }
-.author-list { list-style: none; margin: 0; padding: 0; }
+.author-back-top {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  color: color-mix(in oklab, var(--ink) 35%, transparent);
+  padding-bottom: 10px;
+  transition: color .15s;
+  &:hover { color: var(--accent); }
+}
+.author-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px 12px;
+}
 .author-row {
   background: none; border: 0;
-  display: flex; justify-content: space-between; align-items: baseline;
+  display: flex; align-items: baseline; gap: 6px;
   width: 100%;
-  padding: 8px 0;
+  padding: 10px 0 14px;
   text-align: left;
   border-bottom: 1px dotted color-mix(in oklab, var(--ink) 14%, transparent);
   &:hover {
@@ -669,8 +718,6 @@ em { font-style: italic; }
   font-family: var(--serif);
   font-size: 16px;
   color: var(--ink);
-  flex: 1;
-  padding-right: 12px;
 }
 .author-row-count {
   font-family: var(--mono);
@@ -968,12 +1015,256 @@ em { font-style: italic; }
   margin: 0 auto;
   padding: 24px 32px 0;
 }
+.book-detail-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0;
+}
+.detail-edit-link {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  border-radius: 4px;
+  &:hover { background: color-mix(in oklab, var(--accent) 8%, transparent); }
+}
 .book-detail-loading {
   padding: 80px 32px;
   text-align: center;
   font-family: var(--mono);
   font-size: 12px;
   opacity: 0.5;
+}
+
+/* ───── Edit page ───── */
+.edit-strip {
+  position: sticky; top: 61px; z-index: 40;
+  display: flex; align-items: center; gap: 16px;
+  background: color-mix(in oklab, var(--paper) 94%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 10px 32px;
+  border-bottom: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
+}
+.edit-strip-call {
+  font-family: var(--mono);
+  font-size: 14px; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.edit-actions {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto;
+}
+.edit-saved-msg {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.06em;
+  color: #2d8a4e;
+}
+.edit-btn {
+  border: 0; padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: var(--mono);
+  cursor: pointer;
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+.edit-btn--save {
+  background: var(--accent); color: var(--paper);
+  &:hover:not(:disabled) { background: var(--deep); }
+}
+.edit-btn--cancel {
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+  color: var(--ink);
+  border: 1px solid color-mix(in oklab, var(--ink) 15%, transparent);
+  &:hover { background: color-mix(in oklab, var(--ink) 14%, transparent); }
+}
+.edit-btn--sm { padding: 6px 12px; }
+.edit-body {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 32px 80px;
+}
+.edit-section {
+  border: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.edit-section-header {
+  width: 100%;
+  background: color-mix(in oklab, var(--accent) 4%, var(--paper));
+  border: 0;
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: 600;
+  color: color-mix(in oklab, var(--ink) 75%, transparent);
+  text-align: left;
+  cursor: pointer;
+  &:hover { background: color-mix(in oklab, var(--accent) 8%, var(--paper)); }
+}
+.edit-section-chevron {
+  color: var(--accent);
+  font-size: 10px;
+}
+.edit-section-body {
+  padding: 20px 18px;
+  border-top: 1px solid color-mix(in oklab, var(--ink) 8%, transparent);
+}
+.edit-row {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  margin-bottom: 14px;
+  align-items: flex-end;
+}
+.edit-row--tight { gap: 8px; margin-bottom: 0; }
+.edit-field {
+  display: flex; flex-direction: column; gap: 5px;
+  min-width: 120px;
+}
+.edit-field--grow { flex: 1; min-width: 160px; }
+.edit-field--btn { justify-content: flex-end; min-width: auto; }
+.edit-field-label {
+  font-family: var(--mono);
+  font-size: 9.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: 500;
+  color: color-mix(in oklab, var(--ink) 55%, transparent);
+}
+.edit-input {
+  background: color-mix(in oklab, var(--paper) 60%, white);
+  border: 1px solid color-mix(in oklab, var(--ink) 15%, transparent);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink);
+  outline: none;
+  width: 100%;
+  transition: border-color .15s;
+  &:focus { border-color: var(--accent); background: white; }
+}
+.edit-input--sm { width: 120px; }
+.edit-textarea {
+  @extend .edit-input;
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.55;
+}
+.edit-select {
+  @extend .edit-input;
+  cursor: pointer;
+  appearance: auto;
+}
+.edit-cover-layout {
+  display: flex; gap: 24px; align-items: flex-start;
+}
+.edit-cover-preview {
+  width: 120px;
+  object-fit: cover;
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.14);
+  flex-shrink: 0;
+}
+.edit-cover-placeholder {
+  width: 120px; height: 160px;
+  background: color-mix(in oklab, var(--accent) 6%, var(--paper));
+  border: 1px dashed color-mix(in oklab, var(--accent) 25%, transparent);
+  border-radius: 3px;
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 10px;
+  color: color-mix(in oklab, var(--ink) 40%, transparent);
+  flex-shrink: 0;
+}
+.edit-cover-controls { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+.edit-upload-btn {
+  background: color-mix(in oklab, var(--accent) 6%, transparent);
+  border: 1px dashed color-mix(in oklab, var(--accent) 35%, transparent);
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-size: 12px; font-family: var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  cursor: pointer;
+  &:hover { background: color-mix(in oklab, var(--accent) 12%, transparent); }
+}
+.edit-upload-row { margin-top: 14px; }
+.edit-digital-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--ink) 8%, transparent);
+  &:last-of-type { border-bottom: 0; }
+}
+.edit-digital-provider {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: color-mix(in oklab, var(--ink) 55%, transparent);
+  width: 56px; flex-shrink: 0;
+}
+.edit-digital-url {
+  flex: 1; font-size: 12px;
+  color: var(--accent);
+  text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  &:hover { text-decoration: underline; }
+}
+.edit-digital-format {
+  font-family: var(--mono); font-size: 10px;
+  color: color-mix(in oklab, var(--ink) 50%, transparent);
+  width: 40px; flex-shrink: 0;
+}
+.edit-digital-del {
+  background: none; border: 0;
+  color: color-mix(in oklab, var(--ink) 35%, transparent);
+  font-size: 13px; cursor: pointer; padding: 2px 6px;
+  &:hover { color: #b91c1c; }
+}
+.edit-new-copy-form {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in oklab, var(--ink) 8%, transparent);
+}
+.edit-empty {
+  font-style: italic;
+  color: color-mix(in oklab, var(--ink) 45%, transparent);
+  font-size: 13px;
+  margin: 4px 0 14px;
+}
+.edit-enrich-source {
+  border: 1px solid color-mix(in oklab, var(--ink) 8%, transparent);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.edit-enrich-header {
+  width: 100%; background: none; border: 0;
+  padding: 10px 14px;
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in oklab, var(--ink) 70%, transparent);
+  cursor: pointer; text-align: left;
+  &:hover { color: var(--ink); }
+}
+.edit-enrich-body { padding: 4px 14px 14px; }
+.edit-enrich-field {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--ink) 6%, transparent);
+  &:last-child { border-bottom: 0; }
+}
+.edit-enrich-key {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.06em;
+  color: color-mix(in oklab, var(--ink) 55%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.edit-enrich-val {
+  font-size: 12.5px; color: var(--ink);
+  word-break: break-word;
 }
 
 /* ───── Footer ───── */
@@ -1014,7 +1305,7 @@ em { font-style: italic; }
   .arrivals-grid { grid-template-columns: repeat(2, 1fr); }
   .arrival-0 { grid-column: span 2; grid-row: span 1; }
   .modal-grid { grid-template-columns: 1fr; padding: 32px; gap: 28px; }
-  .author-index { grid-template-columns: 1fr; }
+  .author-list { grid-template-columns: repeat(2, 1fr); }
   .subject-mosaic { grid-template-columns: repeat(2, 1fr); }
   .modal-other-grid { grid-template-columns: repeat(2, 1fr); }
   .site-header-inner { gap: 16px; }

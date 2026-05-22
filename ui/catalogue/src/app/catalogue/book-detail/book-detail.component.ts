@@ -2,6 +2,7 @@ import { Component, input, inject, signal, computed, effect } from '@angular/cor
 import { RouterLink } from '@angular/router';
 import { BooksService } from '../../core/books.service';
 import { LangService } from '../../core/lang.service';
+import { AuthService } from '../../core/auth.service';
 import { Book } from '../../core/book.model';
 import { I18N } from '../../core/i18n.tokens';
 import { CoverComponent } from '../cover/cover.component';
@@ -17,7 +18,12 @@ import { CoverComponent } from '../cover/cover.component';
       <div class="book-detail-loading">Record not found.</div>
     } @else if (book()) {
       <div class="book-detail-page">
-        <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
+        <div class="book-detail-topbar">
+          <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
+          @if (authSvc.user()) {
+            <a class="detail-edit-link" [routerLink]="['/', prefix(), bookNumber(), 'edit']">{{ i18n()['edit_title'] }}</a>
+          }
+        </div>
         <div class="modal-grid">
           <div class="modal-left">
             <div class="modal-cover-wrap">
@@ -111,6 +117,7 @@ export class BookDetailComponent {
 
   private svc = inject(BooksService);
   private langSvc = inject(LangService);
+  readonly authSvc = inject(AuthService);
 
   book = signal<Book | null>(null);
   otherBooks = signal<Book[]>([]);
