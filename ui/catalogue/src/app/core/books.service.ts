@@ -44,6 +44,7 @@ function mapBook(r: any): Book {
     subject: r.subject ?? '',
     subject_pt: r.subject ?? '',
     year: r.year ?? null,
+    language: r.language ?? null,
     publisher: r.publisher ?? null,
     publisher_city: r.publisherCity ?? null,
     notes: r.notes ?? null,

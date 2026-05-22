@@ -48,6 +48,12 @@ import { DOCUMENT } from '@angular/common';
                   <dd>{{ book().year }}</dd>
                 </div>
               }
+              @if (book().language) {
+                <div>
+                  <dt>{{ i18n()['detail_language'] }}</dt>
+                  <dd>{{ langLabel(book().language!) }}</dd>
+                </div>
+              }
               @if (book().publisher) {
                 <div>
                   <dt>{{ i18n()['detail_publisher'] }}</dt>
@@ -135,4 +141,17 @@ export class DetailModalComponent implements OnInit, OnDestroy {
   navAuthor() { this.close.emit(); this.navigateAuthor.emit(this.book().author); }
   navSubject() { this.close.emit(); this.navigateSubject.emit(this.book().subject); }
   openOther(b: Book) { this.close.emit(); setTimeout(() => this.openBook.emit(b), 50); }
+
+  langLabel(code: string): string {
+    const map: Record<string, string> = {
+      'por': 'Portuguese', 'pt': 'Portuguese', 'pt-BR': 'Portuguese (Brazil)',
+      'eng': 'English', 'en': 'English',
+      'spa': 'Spanish', 'es': 'Spanish',
+      'fra': 'French', 'fr': 'French',
+      'deu': 'German', 'de': 'German',
+      'ita': 'Italian', 'it': 'Italian',
+      'lat': 'Latin',
+    };
+    return map[code] ?? code;
+  }
 }

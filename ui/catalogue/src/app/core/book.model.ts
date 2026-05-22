@@ -10,6 +10,7 @@ export interface Book {
   subject: string;
   subject_pt: string;
   year: number | null;
+  language: string | null;
   publisher: string | null;
   publisher_city: string | null;
   notes: string | null;

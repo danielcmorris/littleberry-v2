@@ -91,7 +91,7 @@ app.MapGet("/api/books", async (IDbConnection db,
 
     if (!string.IsNullOrWhiteSpace(search))
     {
-        where.Add("(to_tsvector('simple', w.title) @@ plainto_tsquery('simple', @search) OR lower(a.name) LIKE @searchLike OR lower(h.call_number) LIKE @searchLike)");
+        where.Add("(to_tsvector('simple', w.title) @@ plainto_tsquery('simple', @search) OR lower(a.name) LIKE @searchLike OR lower(h.call_number) LIKE @searchLike OR h.book_id::text LIKE @searchLike OR h.book_number::text LIKE @searchLike)");
         parameters.Add("search", search.Trim());
         parameters.Add("searchLike", "%" + search.Trim().ToLower() + "%");
     }
@@ -124,7 +124,7 @@ app.MapGet("/api/books", async (IDbConnection db,
             w.id AS work_id, w.title,
             a.name AS author,
             s.term AS subject, s.prefix AS subject_prefix,
-            e.publication_year AS year,
+            e.publication_year AS year, e.language,
             p.name AS publisher, p.place AS publisher_city,
             h.book_number,
             EXISTS(SELECT 1 FROM digital_copies dc WHERE dc.edition_id = e.id) AS has_digital
@@ -161,7 +161,7 @@ app.MapGet("/api/books/{callNumber}", async (IDbConnection db, string callNumber
                w.id AS work_id, w.title,
                a.name AS author,
                s.term AS subject, s.prefix AS subject_prefix,
-               e.publication_year AS year,
+               e.publication_year AS year, e.language,
                p.name AS publisher, p.place AS publisher_city,
                h.book_number
         FROM holdings h
@@ -202,11 +202,12 @@ static dynamic MapBook(dynamic r) => new {
     subject = (string?)r.subject,
     subjectPrefix = (string?)r.subject_prefix,
     year = r.year == null ? (int?)null : (int)r.year,
+    language = (string?)r.language,
     publisher = (string?)r.publisher,
     publisherCity = (string?)r.publisher_city,
     notes = (string?)null,
     coverUrl = (string?)r.cover_url,
     hasCover = r.cover_url != null && !string.IsNullOrEmpty((string?)r.cover_url),
     workId = (Guid)r.work_id,
-    added = DateTime.UtcNow.ToString("yyyy-MM-dd") // will be replaced with real date later
+    added = DateTime.UtcNow.ToString("yyyy-MM-dd")
 };
