@@ -1,8 +1,11 @@
-import { Component, input, output, model, computed } from '@angular/core';
+import { Component, input, output, model, computed, inject, signal, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Book } from '../../core/book.model';
+import { Subject as RxSubject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { I18N } from '../../core/i18n.tokens';
 import { BookCardComponent } from '../book-card/book-card.component';
+import { BooksService } from '../../core/books.service';
+import { Book } from '../../core/book.model';
 
 @Component({
   selector: 'app-search-view',
@@ -19,13 +22,14 @@ import { BookCardComponent } from '../book-card/book-card.component';
             [(ngModel)]="query"
             [placeholder]="i18n()['search_placeholder']"
             autofocus
+            (ngModelChange)="onQueryChange($event)"
           />
           <div class="filter-head-count">
-            {{ query() ? (results().length + ' ' + i18n()['search_results']) : '&#x2014;' }}
+            {{ query() ? (total() + ' ' + i18n()['search_results']) : '&#x2014;' }}
           </div>
         </div>
       </header>
-      @if (query() && results().length === 0) {
+      @if (query() && !loading() && results().length === 0) {
         <div class="empty">{{ i18n()['search_no_results'] }}</div>
       }
       <div class="catalog-grid">
@@ -37,23 +41,45 @@ import { BookCardComponent } from '../book-card/book-card.component';
   `,
 })
 export class SearchViewComponent {
-  books = input.required<Book[]>();
   lang = input<string>('en');
   query = model<string>('');
   open = output<Book>();
   navHome = output<void>();
 
+  private svc = inject(BooksService);
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+  results = signal<Book[]>([]);
+  total = signal(0);
+  loading = signal(false);
 
-  results = computed(() => {
-    const q = this.query().trim().toLowerCase();
-    if (!q) return [];
-    return this.books().filter(b =>
-      b.title.toLowerCase().includes(q) ||
-      b.author.toLowerCase().includes(q) ||
-      b.call_number.toLowerCase().includes(q) ||
-      b.subject.toLowerCase().includes(q) ||
-      (b.subject_pt ?? '').toLowerCase().includes(q)
-    );
-  });
+  private search$ = new RxSubject<string>();
+
+  constructor() {
+    effect(() => { this.search$.next(this.query()); });
+
+    this.search$.pipe(
+      debounceTime(250),
+      distinctUntilChanged(),
+      switchMap(q => {
+        if (!q.trim()) {
+          this.results.set([]);
+          this.total.set(0);
+          this.loading.set(false);
+          return [];
+        }
+        this.loading.set(true);
+        return this.svc.getBooks({ search: q, pageSize: 48 });
+      })
+    ).subscribe(page => {
+      if (page) {
+        this.results.set(page.items);
+        this.total.set(page.total);
+      }
+      this.loading.set(false);
+    });
+  }
+
+  onQueryChange(q: string) {
+    this.search$.next(q);
+  }
 }

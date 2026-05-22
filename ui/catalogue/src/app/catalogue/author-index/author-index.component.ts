@@ -1,5 +1,5 @@
 import { Component, input, output, computed } from '@angular/core';
-import { Book } from '../../core/book.model';
+import { ApiAuthor } from '../../core/books.service';
 import { I18N } from '../../core/i18n.tokens';
 
 @Component({
@@ -22,7 +22,7 @@ import { I18N } from '../../core/i18n.tokens';
                 <li>
                   <button class="author-row" (click)="navAuthor.emit(a.name)">
                     <span class="author-row-name">{{ a.name }}</span>
-                    <span class="author-row-count">{{ a.count }} {{ a.count === 1 ? i18n()['book_count_one'] : i18n()['books_count'] }}</span>
+                    <span class="author-row-count">{{ a.bookCount }} {{ a.bookCount === 1 ? i18n()['book_count_one'] : i18n()['books_count'] }}</span>
                   </button>
                 </li>
               }
@@ -34,27 +34,17 @@ import { I18N } from '../../core/i18n.tokens';
   `,
 })
 export class AuthorIndexComponent {
-  books = input.required<Book[]>();
+  authors = input.required<ApiAuthor[]>();
   lang = input<string>('en');
   navAuthor = output<string>();
 
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
 
-  authors = computed(() => {
-    const map = new Map<string, number>();
-    for (const b of this.books()) {
-      if (b.author === 'Anonymous') continue;
-      map.set(b.author, (map.get(b.author) ?? 0) + 1);
-    }
-    return [...map.entries()]
-      .map(([name, count]) => ({ name, count, key: name.split(' ').pop()! }))
-      .sort((a, b) => a.key.localeCompare(b.key));
-  });
-
   ordered = computed(() => {
-    const letters = new Map<string, { name: string; count: number }[]>();
+    const letters = new Map<string, ApiAuthor[]>();
     for (const a of this.authors()) {
-      const l = a.key[0].toUpperCase();
+      const lastName = a.name.split(' ').pop() ?? a.name;
+      const l = lastName[0]?.toUpperCase() ?? '#';
       if (!letters.has(l)) letters.set(l, []);
       letters.get(l)!.push(a);
     }

@@ -1,8 +1,8 @@
-import { Component, input, output, inject, computed } from '@angular/core';
-import { Book } from '../../core/book.model';
+import { Component, input, output, inject, computed, signal, OnChanges, SimpleChanges } from '@angular/core';
 import { I18N } from '../../core/i18n.tokens';
 import { BookCardComponent } from '../book-card/book-card.component';
 import { BooksService } from '../../core/books.service';
+import { Book } from '../../core/book.model';
 
 @Component({
   selector: 'app-author-view',
@@ -20,38 +20,41 @@ import { BooksService } from '../../core/books.service';
           <div class="filter-head-kicker">{{ i18n()['sect_authors'] }}</div>
           <h1 class="filter-head-title">{{ author() }}</h1>
           <div class="filter-head-count">
-            {{ list().length }} {{ list().length === 1 ? i18n()['book_count_one'] : i18n()['books_count'] }}
-            <span class="filter-head-prefix">&middot; {{ subjectList() }}</span>
+            {{ total() }} {{ total() === 1 ? i18n()['book_count_one'] : i18n()['books_count'] }}
           </div>
         </div>
       </header>
-      <div class="catalog-grid">
-        @for (b of list(); track b.id) {
-          <app-book-card [book]="b" [lang]="lang()" (open)="open.emit($event)" />
-        }
-      </div>
+      @if (loading()) {
+        <div style="padding:40px;text-align:center;font-family:var(--mono);font-size:12px;opacity:.5">Loading…</div>
+      } @else {
+        <div class="catalog-grid">
+          @for (b of books(); track b.id) {
+            <app-book-card [book]="b" [lang]="lang()" (open)="open.emit($event)" />
+          }
+        </div>
+      }
     </section>
   `,
 })
-export class AuthorViewComponent {
+export class AuthorViewComponent implements OnChanges {
   author = input.required<string>();
-  books = input.required<Book[]>();
   lang = input<string>('en');
   open = output<Book>();
   navHome = output<void>();
 
   private svc = inject(BooksService);
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+  books = signal<Book[]>([]);
+  total = signal(0);
+  loading = signal(true);
 
-  list = computed(() =>
-    this.books().filter(b => b.author === this.author()).sort((a, b) => a.year - b.year)
-  );
-
-  subjectList = computed(() => {
-    const subjects = [...new Set(this.list().map(b => b.subject))];
-    return subjects.map(s => this.lang() === 'pt'
-      ? (this.svc.subjects().find(x => x.key === s)?.pt ?? s)
-      : s
-    ).join(' · ');
-  });
+  ngOnChanges(_changes: SimpleChanges) {
+    this.books.set([]);
+    this.loading.set(true);
+    this.svc.getBooks({ author: this.author(), pageSize: 100 }).subscribe(p => {
+      this.books.set(p.items);
+      this.total.set(p.total);
+      this.loading.set(false);
+    });
+  }
 }

@@ -35,7 +35,8 @@ export class CoverPlaceholderComponent {
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
 
   stampTransform = computed(() => {
-    const seed = this.book().id * 9301 + 49297;
+    const raw = this.book().book_id ?? this.book().call_number.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const seed = (typeof raw === 'number' ? raw : 0) * 9301 + 49297;
     const rot = ((seed % 100) - 50) / 50 * 1.6;
     const xOff = ((seed >> 3) % 8) - 4;
     return `translateX(${xOff}px) rotate(${rot}deg)`;

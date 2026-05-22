@@ -1,4 +1,4 @@
-import { Component, input, output, inject, OnInit, OnDestroy, computed } from '@angular/core';
+import { Component, input, output, inject, OnInit, OnDestroy, computed, signal } from '@angular/core';
 import { Book } from '../../core/book.model';
 import { I18N } from '../../core/i18n.tokens';
 import { CoverComponent } from '../cover/cover.component';
@@ -42,27 +42,33 @@ import { DOCUMENT } from '@angular/common';
               <button class="modal-author-link" (click)="navAuthor()">{{ book().author }}</button>
             </div>
             <dl class="modal-dl">
-              <div>
-                <dt>{{ i18n()['detail_published'] }}</dt>
-                <dd>{{ book().year }}</dd>
-              </div>
-              <div>
-                <dt>{{ i18n()['detail_publisher'] }}</dt>
-                <dd>{{ book().publisher }}, {{ book().publisher_city }}</dd>
-              </div>
+              @if (book().year) {
+                <div>
+                  <dt>{{ i18n()['detail_published'] }}</dt>
+                  <dd>{{ book().year }}</dd>
+                </div>
+              }
+              @if (book().publisher) {
+                <div>
+                  <dt>{{ i18n()['detail_publisher'] }}</dt>
+                  <dd>{{ book().publisher }}@if (book().publisher_city) {, {{ book().publisher_city }}}</dd>
+                </div>
+              }
               <div>
                 <dt>{{ i18n()['detail_subject'] }}</dt>
                 <dd>
                   <button class="modal-subj-link" (click)="navSubject()">
                     <span class="modal-subj-swatch" [style.background]="subjectTile()"></span>
-                    {{ lang() === 'pt' ? subjectPt() : book().subject }}
+                    {{ book().subject }}
                   </button>
                 </dd>
               </div>
-              <div>
-                <dt>{{ i18n()['detail_notes'] }}</dt>
-                <dd class="modal-notes">{{ book().notes }}</dd>
-              </div>
+              @if (book().notes) {
+                <div>
+                  <dt>{{ i18n()['detail_notes'] }}</dt>
+                  <dd class="modal-notes">{{ book().notes }}</dd>
+                </div>
+              }
             </dl>
             @if (otherBooks().length > 0) {
               <div class="modal-other">
@@ -100,24 +106,21 @@ export class DetailModalComponent implements OnInit, OnDestroy {
   private doc = inject(DOCUMENT);
 
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
-
-  otherBooks = computed(() =>
-    this.svc.books().filter(b => b.author === this.book().author && b.id !== this.book().id).slice(0, 4)
-  );
+  otherBooks = signal<Book[]>([]);
 
   subjectTile = computed(() => {
     const subj = this.svc.subjects().find(s => s.key === this.book().subject);
     return subj?.tile ?? '#1a4480';
   });
 
-  subjectPt = computed(() => {
-    const subj = this.svc.subjects().find(s => s.key === this.book().subject);
-    return subj?.pt ?? this.book().subject;
-  });
-
   ngOnInit() {
     this.doc.body.style.overflow = 'hidden';
     this.doc.addEventListener('keydown', this.onKey);
+    if (this.book().author) {
+      this.svc.getBooks({ author: this.book().author, pageSize: 5 }).subscribe(p => {
+        this.otherBooks.set(p.items.filter(b => b.id !== this.book().id).slice(0, 4));
+      });
+    }
   }
 
   ngOnDestroy() {
@@ -129,18 +132,7 @@ export class DetailModalComponent implements OnInit, OnDestroy {
     if (e.key === 'Escape') this.close.emit();
   };
 
-  navAuthor() {
-    this.close.emit();
-    this.navigateAuthor.emit(this.book().author);
-  }
-
-  navSubject() {
-    this.close.emit();
-    this.navigateSubject.emit(this.book().subject);
-  }
-
-  openOther(b: Book) {
-    this.close.emit();
-    setTimeout(() => this.openBook.emit(b), 50);
-  }
+  navAuthor() { this.close.emit(); this.navigateAuthor.emit(this.book().author); }
+  navSubject() { this.close.emit(); this.navigateSubject.emit(this.book().subject); }
+  openOther(b: Book) { this.close.emit(); setTimeout(() => this.openBook.emit(b), 50); }
 }

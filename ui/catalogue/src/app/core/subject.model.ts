@@ -3,4 +3,5 @@ export interface Subject {
   pt: string;
   prefix: string;
   tile: string;
+  bookCount: number;
 }

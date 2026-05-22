@@ -1,6 +1,8 @@
-import { Component, signal, computed, inject } from '@angular/core';
+import { Component, signal, inject, OnInit } from '@angular/core';
 import { BooksService } from './core/books.service';
+import { ApiAuthor } from './core/books.service';
 import { Book } from './core/book.model';
+import { Subject } from './core/subject.model';
 import { HeaderComponent } from './shared/header/header.component';
 import { FooterComponent } from './shared/footer/footer.component';
 import { HeroComponent } from './catalogue/hero/hero.component';
@@ -18,16 +20,9 @@ type View = 'home' | 'authors' | 'subjects' | 'author' | 'subject' | 'search';
   selector: 'app-root',
   standalone: true,
   imports: [
-    HeaderComponent,
-    FooterComponent,
-    HeroComponent,
-    NewArrivalsComponent,
-    SubjectTilesComponent,
-    AuthorIndexComponent,
-    SubjectViewComponent,
-    AuthorViewComponent,
-    SearchViewComponent,
-    DetailModalComponent,
+    HeaderComponent, FooterComponent, HeroComponent, NewArrivalsComponent,
+    SubjectTilesComponent, AuthorIndexComponent, SubjectViewComponent,
+    AuthorViewComponent, SearchViewComponent, DetailModalComponent,
   ],
   template: `
     <div class="biblio">
@@ -45,21 +40,22 @@ type View = 'home' | 'authors' | 'subjects' | 'author' | 'subject' | 'search';
 
       <main class="site-main">
         @if (view() === 'home') {
-          <app-hero [book]="featured()" [lang]="lang()" (open)="openModal($event)" />
-          <app-new-arrivals [books]="books()" [lang]="lang()" (open)="openModal($event)" />
-          <app-subject-tiles [books]="books()" [lang]="lang()" (navSubject)="goSubject($event)" />
-          <app-author-index [books]="books()" [lang]="lang()" (navAuthor)="goAuthor($event)" />
+          @if (featured()) {
+            <app-hero [book]="featured()!" [lang]="lang()" (open)="openModal($event)" />
+          }
+          <app-new-arrivals [lang]="lang()" (open)="openModal($event)" />
+          <app-subject-tiles [subjects]="subjects()" [lang]="lang()" (navSubject)="goSubject($event)" />
+          <app-author-index [authors]="authors()" [lang]="lang()" (navAuthor)="goAuthor($event)" />
         }
         @if (view() === 'subjects') {
-          <app-subject-tiles [books]="books()" [lang]="lang()" (navSubject)="goSubject($event)" />
+          <app-subject-tiles [subjects]="subjects()" [lang]="lang()" (navSubject)="goSubject($event)" />
         }
         @if (view() === 'authors') {
-          <app-author-index [books]="books()" [lang]="lang()" (navAuthor)="goAuthor($event)" />
+          <app-author-index [authors]="authors()" [lang]="lang()" (navAuthor)="goAuthor($event)" />
         }
         @if (view() === 'subject' && payload()) {
           <app-subject-view
             [subject]="payload()!"
-            [books]="books()"
             [lang]="lang()"
             (open)="openModal($event)"
             (navHome)="goHome()"
@@ -68,7 +64,6 @@ type View = 'home' | 'authors' | 'subjects' | 'author' | 'subject' | 'search';
         @if (view() === 'author' && payload()) {
           <app-author-view
             [author]="payload()!"
-            [books]="books()"
             [lang]="lang()"
             (open)="openModal($event)"
             (navHome)="goHome()"
@@ -76,7 +71,6 @@ type View = 'home' | 'authors' | 'subjects' | 'author' | 'subject' | 'search';
         }
         @if (view() === 'search') {
           <app-search-view
-            [books]="books()"
             [lang]="lang()"
             [(query)]="query"
             (open)="openModal($event)"
@@ -100,7 +94,7 @@ type View = 'home' | 'authors' | 'subjects' | 'author' | 'subject' | 'search';
     </div>
   `,
 })
-export class App {
+export class App implements OnInit {
   private svc = inject(BooksService);
 
   view = signal<View>('home');
@@ -111,14 +105,22 @@ export class App {
     typeof localStorage !== 'undefined' ? (localStorage.getItem('lb_lang') ?? 'en') : 'en'
   );
 
-  books = computed(() => this.svc.books());
-  featured = computed(() => this.books().find(b => b.id === 1) ?? this.books()[0]);
+  subjects = signal<Subject[]>([]);
+  authors = signal<ApiAuthor[]>([]);
+  featured = signal<Book | null>(null);
+
+  ngOnInit() {
+    this.svc.loadStats().subscribe();
+    this.svc.loadSubjects().subscribe(s => this.subjects.set(s));
+    this.svc.loadAuthors(500).subscribe(a => this.authors.set(a));
+    this.svc.getBooks({ pageSize: 1 }).subscribe(p => {
+      if (p.items.length) this.featured.set(p.items[0]);
+    });
+  }
 
   setLang(l: string) {
     this.lang.set(l);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('lb_lang', l);
-    }
+    if (typeof localStorage !== 'undefined') localStorage.setItem('lb_lang', l);
   }
 
   goHome() {
@@ -139,7 +141,5 @@ export class App {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  openModal(book: Book) {
-    this.openBook.set(book);
-  }
+  openModal(book: Book) { this.openBook.set(book); }
 }

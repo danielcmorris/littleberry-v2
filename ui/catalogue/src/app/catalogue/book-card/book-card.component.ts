@@ -19,7 +19,9 @@ import { CoverComponent } from '../cover/cover.component';
         <div class="bookcard-call">{{ book().call_number }}</div>
         <div class="bookcard-title">{{ book().title }}</div>
         <div class="bookcard-author">{{ book().author }}</div>
-        <div class="bookcard-year">{{ book().year }}</div>
+        @if (book().year) {
+          <div class="bookcard-year">{{ book().year }}</div>
+        }
       </div>
     </button>
   `,
@@ -33,6 +35,6 @@ export class BookCardComponent {
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
 
   isNew(): boolean {
-    return this.book().added >= '2026-05-15';
+    return (this.book().book_id ?? 0) >= 12000;
   }
 }

@@ -1,7 +1,6 @@
-import { Component, input, output, inject, computed } from '@angular/core';
-import { Book } from '../../core/book.model';
+import { Component, input, output, computed } from '@angular/core';
+import { Subject } from '../../core/subject.model';
 import { I18N } from '../../core/i18n.tokens';
-import { BooksService } from '../../core/books.service';
 
 @Component({
   selector: 'app-subject-tiles',
@@ -23,7 +22,7 @@ import { BooksService } from '../../core/books.service';
             <div class="subject-tile-body">
               <div class="subject-tile-prefix">{{ s.prefix }}</div>
               <div class="subject-tile-name">{{ lang() === 'pt' ? s.pt : s.key }}</div>
-              <div class="subject-tile-count">{{ countFor(s.key) }} {{ countFor(s.key) === 1 ? i18n()['book_count_one'] : i18n()['books_count'] }}</div>
+              <div class="subject-tile-count">{{ s.bookCount }} {{ s.bookCount === 1 ? i18n()['book_count_one'] : i18n()['books_count'] }}</div>
             </div>
           </button>
         }
@@ -32,15 +31,8 @@ import { BooksService } from '../../core/books.service';
   `,
 })
 export class SubjectTilesComponent {
-  books = input.required<Book[]>();
+  subjects = input.required<Subject[]>();
   lang = input<string>('en');
   navSubject = output<string>();
-
-  private svc = inject(BooksService);
-  subjects = computed(() => this.svc.subjects());
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
-
-  countFor(key: string): number {
-    return this.books().filter(b => b.subject === key).length;
-  }
 }
