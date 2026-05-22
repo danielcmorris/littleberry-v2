@@ -1162,12 +1162,38 @@ em { font-style: italic; }
 .edit-cover-layout {
   display: flex; gap: 24px; align-items: flex-start;
 }
+.edit-cover-preview-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
 .edit-cover-preview {
   width: 120px;
-  object-fit: cover;
+  display: block;
   border-radius: 3px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.14);
-  flex-shrink: 0;
+}
+.edit-cover-uploading {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.45);
+  border-radius: 3px;
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.06em; color: white;
+}
+.edit-cover-remove {
+  position: absolute; top: 5px; right: 5px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(0,0,0,0.55);
+  color: white;
+  font-size: 11px;
+  display: grid; place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s;
+  .edit-cover-preview-wrap:hover & { opacity: 1; }
+  &:hover { background: #b91c1c; }
 }
 .edit-cover-placeholder {
   width: 120px; height: 160px;

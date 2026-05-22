@@ -195,11 +195,19 @@ import { I18N } from '../../core/i18n.tokens';
             </button>
             @if (sectCover()) {
               <div class="edit-section-body edit-cover-layout">
-                @if (currentCoverUrl()) {
-                  <img class="edit-cover-preview" [src]="currentCoverUrl()!" alt="Cover" />
-                } @else {
-                  <div class="edit-cover-placeholder">No cover</div>
-                }
+                <div class="edit-cover-preview-wrap">
+                  @if (currentCoverUrl()) {
+                    <img class="edit-cover-preview" [src]="currentCoverUrl()!" alt="Cover" />
+                    @if (!coverUploading()) {
+                      <button type="button" class="edit-cover-remove" (click)="removeCover()" title="Remove cover">&#x2715;</button>
+                    }
+                  } @else {
+                    <div class="edit-cover-placeholder">No cover</div>
+                  }
+                  @if (coverUploading()) {
+                    <div class="edit-cover-uploading">Uploading…</div>
+                  }
+                </div>
                 <div class="edit-cover-controls">
                   <div class="edit-field">
                     <label class="edit-field-label">Cover URL</label>
@@ -386,8 +394,10 @@ export class BookEditComponent {
   });
 
   digitalCopies = signal<BookEditData['digitalCopies']>([]);
+  coverPreview = signal<string | null>(null);
+  coverUploading = signal(false);
 
-  currentCoverUrl = computed(() => this.form.value.coverUrl || null);
+  currentCoverUrl = computed(() => this.coverPreview() || this.form.value.coverUrl || null);
 
   coverFileRef = viewChild<ElementRef>('coverFileInput');
   fileInputRef = viewChild<ElementRef>('fileInput');
@@ -499,14 +509,51 @@ export class BookEditComponent {
     });
   }
 
-  onCoverFile(event: Event) {
+  removeCover() {
+    this.svc.removeCover(this.callNumber()).subscribe({
+      next: () => {
+        this.form.patchValue({ coverUrl: '' });
+        this.coverPreview.set(null);
+        this.data.update(d => d ? { ...d, holding: { ...d.holding, coverUrl: null } } : d);
+      },
+    });
+  }
+
+  async onCoverFile(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.svc.uploadCover(this.callNumber(), file).subscribe({
+    this.coverUploading.set(true);
+    const { blob, dataUrl } = await this.resizeImage(file, 400);
+    this.coverPreview.set(dataUrl);
+    const resized = new File([blob], file.name, { type: 'image/jpeg' });
+    this.svc.uploadCover(this.callNumber(), resized).subscribe({
       next: (r) => {
         this.form.patchValue({ coverUrl: r.coverUrl });
         this.data.update(d => d ? { ...d, holding: { ...d.holding, coverUrl: r.coverUrl } } : d);
+        this.coverPreview.set(null);
+        this.coverUploading.set(false);
       },
+      error: () => this.coverUploading.set(false),
+    });
+  }
+
+  private resizeImage(file: File, maxWidth: number): Promise<{ blob: Blob; dataUrl: string }> {
+    return new Promise(resolve => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        URL.revokeObjectURL(objectUrl);
+        canvas.toBlob(blob => resolve({ blob: blob!, dataUrl }), 'image/jpeg', 0.85);
+      };
+      img.src = objectUrl;
     });
   }
 

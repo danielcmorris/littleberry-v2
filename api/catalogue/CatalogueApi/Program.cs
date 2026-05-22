@@ -396,6 +396,15 @@ app.MapDelete("/api/books/{callNumber}/digital/{id}", async (IDbConnection db, s
     return affected > 0 ? Results.NoContent() : Results.NotFound();
 });
 
+// Remove cover
+app.MapDelete("/api/books/{callNumber}/cover", async (IDbConnection db, string callNumber) =>
+{
+    var affected = await db.ExecuteAsync(
+        @"UPDATE holdings SET cover_url = NULL WHERE upper(call_number) = upper(@callNumber)",
+        new { callNumber });
+    return affected > 0 ? Results.NoContent() : Results.NotFound();
+});
+
 // Cover: upload file to S3 (falls back to local disk when AWS not configured) or set URL
 app.MapPost("/api/books/{callNumber}/cover", async (IDbConnection db, HttpContext ctx, AwsS3Service s3, string callNumber) =>
 {

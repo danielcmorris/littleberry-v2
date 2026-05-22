@@ -164,6 +164,10 @@ export class BooksService {
     return this.http.delete<void>(`${API}/books/${encodeURIComponent(callNumber)}/digital/${id}`);
   }
 
+  removeCover(callNumber: string): Observable<void> {
+    return this.http.delete<void>(`${API}/books/${encodeURIComponent(callNumber)}/cover`);
+  }
+
   uploadCover(callNumber: string, file: File | null, url?: string): Observable<{ coverUrl: string }> {
     const fd = new FormData();
     if (file) fd.append('file', file);
