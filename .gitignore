@@ -1,0 +1,18 @@
+# Credentials / local config
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+
+# Uploaded files
+api/catalogue/CatalogueApi/wwwroot/uploads/
+
+# .NET build output
+bin/
+obj/
+
+# Angular build output
+ui/catalogue/dist/
+ui/catalogue/.angular/
+
+# Node modules
+node_modules/

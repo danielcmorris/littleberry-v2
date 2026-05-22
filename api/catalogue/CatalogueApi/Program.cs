@@ -1,4 +1,8 @@
 using System.Data;
+using Amazon;
+using Amazon.S3;
+using Amazon.S3.Transfer;
+using CatalogueApi.Services;
 using Dapper;
 using Npgsql;
 
@@ -6,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IDbConnection>(_ =>
     new NpgsqlConnection(builder.Configuration.GetConnectionString("Postgres")));
+builder.Services.AddSingleton<AwsS3Service>();
 
 builder.Services.AddCors(opt =>
     opt.AddDefaultPolicy(p => p
@@ -391,8 +396,8 @@ app.MapDelete("/api/books/{callNumber}/digital/{id}", async (IDbConnection db, s
     return affected > 0 ? Results.NoContent() : Results.NotFound();
 });
 
-// Cover: upload file or set URL
-app.MapPost("/api/books/{callNumber}/cover", async (IDbConnection db, HttpContext ctx, string callNumber) =>
+// Cover: upload file to S3 (falls back to local disk when AWS not configured) or set URL
+app.MapPost("/api/books/{callNumber}/cover", async (IDbConnection db, HttpContext ctx, AwsS3Service s3, string callNumber) =>
 {
     var form = await ctx.Request.ReadFormAsync();
     var urlValue = form["url"].FirstOrDefault();
@@ -403,19 +408,26 @@ app.MapPost("/api/books/{callNumber}/cover", async (IDbConnection db, HttpContex
     if (file != null && file.Length > 0)
     {
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp")
+        if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" && ext != ".webp")
             return Results.BadRequest("Unsupported image format");
 
-        var guid = Guid.NewGuid().ToString("N");
-        var fileName = $"{guid}{ext}";
-        var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads", "covers");
-        Directory.CreateDirectory(uploadsPath);
-        var filePath = Path.Combine(uploadsPath, fileName);
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddTHHmmss");
+        var fileName = $"{timestamp}{ext}";
 
-        using (var stream = File.Create(filePath))
+        if (s3.IsConfigured)
+        {
+            var key = $"library/{callNumber.ToUpper()}/{fileName}";
+            using var stream = file.OpenReadStream();
+            newCoverUrl = await s3.UploadAsync(stream, key, file.ContentType);
+        }
+        else
+        {
+            var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads", "covers");
+            Directory.CreateDirectory(uploadsPath);
+            using var stream = File.Create(Path.Combine(uploadsPath, fileName));
             await file.CopyToAsync(stream);
-
-        newCoverUrl = $"/uploads/covers/{fileName}";
+            newCoverUrl = $"/uploads/covers/{fileName}";
+        }
     }
     else if (!string.IsNullOrWhiteSpace(urlValue))
     {
@@ -433,8 +445,8 @@ app.MapPost("/api/books/{callNumber}/cover", async (IDbConnection db, HttpContex
     return Results.Ok(new { coverUrl = newCoverUrl });
 });
 
-// File upload (PDF/EPUB) → digital_copies
-app.MapPost("/api/books/{callNumber}/files", async (IDbConnection db, HttpContext ctx, string callNumber) =>
+// File upload (PDF/EPUB) → S3 (falls back to local disk) → digital_copies
+app.MapPost("/api/books/{callNumber}/files", async (IDbConnection db, HttpContext ctx, AwsS3Service s3, string callNumber) =>
 {
     var editionId = await db.QueryFirstOrDefaultAsync<Guid?>(
         @"SELECT h.edition_id FROM holdings h WHERE upper(h.call_number) = upper(@callNumber) LIMIT 1",
@@ -449,17 +461,25 @@ app.MapPost("/api/books/{callNumber}/files", async (IDbConnection db, HttpContex
     if (ext != ".pdf" && ext != ".epub")
         return Results.BadRequest("Only PDF and EPUB files are accepted");
 
-    var guid = Guid.NewGuid().ToString("N");
-    var fileName = $"{guid}{ext}";
-    var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads", "files");
-    Directory.CreateDirectory(uploadsPath);
-    var filePath = Path.Combine(uploadsPath, fileName);
-
-    using (var stream = File.Create(filePath))
-        await file.CopyToAsync(stream);
-
-    var fileUrl = $"/uploads/files/{fileName}";
+    var timestamp = DateTime.UtcNow.ToString("yyyyMMddTHHmmss");
+    var fileName = $"{timestamp}{ext}";
     var format = ext == ".pdf" ? "PDF" : "EPUB";
+    string fileUrl;
+
+    if (s3.IsConfigured)
+    {
+        var key = $"library/{callNumber.ToUpper()}/{fileName}";
+        using var stream = file.OpenReadStream();
+        fileUrl = await s3.UploadAsync(stream, key, file.ContentType);
+    }
+    else
+    {
+        var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads", "files");
+        Directory.CreateDirectory(uploadsPath);
+        using var stream = File.Create(Path.Combine(uploadsPath, fileName));
+        await file.CopyToAsync(stream);
+        fileUrl = $"/uploads/files/{fileName}";
+    }
 
     await db.ExecuteAsync(
         @"INSERT INTO digital_copies (id, edition_id, provider, url, format, access, retrieved_at) VALUES (gen_random_uuid(), @editionId, 'upload', @fileUrl, @format, 'local', now())",
