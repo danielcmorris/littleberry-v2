@@ -1,7 +1,8 @@
-import { Component, input, computed, inject } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { I18N } from '../../core/i18n.tokens';
+import { LangService } from '../../core/lang.service';
 import { BooksService } from '../../core/books.service';
+import { I18N } from '../../core/i18n.tokens';
 
 @Component({
   selector: 'app-footer',
@@ -21,8 +22,8 @@ import { BooksService } from '../../core/books.service';
   `,
 })
 export class FooterComponent {
-  lang = input<string>('en');
+  private langSvc = inject(LangService);
   private svc = inject(BooksService);
-  i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+  i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
   totalBooks = computed(() => this.svc.totalBooks());
 }

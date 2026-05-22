@@ -1,5 +1,7 @@
-import { Component, input, output, computed } from '@angular/core';
-import { ApiAuthor } from '../../core/books.service';
+import { Component, inject, computed } from '@angular/core';
+import { Router } from '@angular/router';
+import { LangService } from '../../core/lang.service';
+import { BooksService, ApiAuthor } from '../../core/books.service';
 import { I18N } from '../../core/i18n.tokens';
 
 @Component({
@@ -20,7 +22,7 @@ import { I18N } from '../../core/i18n.tokens';
             <ul class="author-list">
               @for (a of entry[1]; track a.name) {
                 <li>
-                  <button class="author-row" (click)="navAuthor.emit(a.name)">
+                  <button class="author-row" (click)="navigate(a.name)">
                     <span class="author-row-name">{{ a.name }}</span>
                     <span class="author-row-count">{{ a.bookCount }} {{ a.bookCount === 1 ? i18n()['book_count_one'] : i18n()['books_count'] }}</span>
                   </button>
@@ -34,11 +36,12 @@ import { I18N } from '../../core/i18n.tokens';
   `,
 })
 export class AuthorIndexComponent {
-  authors = input.required<ApiAuthor[]>();
-  lang = input<string>('en');
-  navAuthor = output<string>();
+  private router = inject(Router);
+  private langSvc = inject(LangService);
+  private svc = inject(BooksService);
 
-  i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+  i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
+  authors = computed(() => this.svc.authors());
 
   ordered = computed(() => {
     const letters = new Map<string, ApiAuthor[]>();
@@ -50,4 +53,8 @@ export class AuthorIndexComponent {
     }
     return [...letters.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   });
+
+  navigate(name: string) {
+    this.router.navigate(['/author', name]);
+  }
 }

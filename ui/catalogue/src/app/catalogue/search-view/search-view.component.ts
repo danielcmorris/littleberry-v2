@@ -1,7 +1,8 @@
-import { Component, input, output, model, computed, inject, signal, effect } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, input, inject, computed, signal, effect } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { Subject as RxSubject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { LangService } from '../../core/lang.service';
 import { I18N } from '../../core/i18n.tokens';
 import { BookCardComponent } from '../book-card/book-card.component';
 import { BooksService } from '../../core/books.service';
@@ -10,44 +11,44 @@ import { Book } from '../../core/book.model';
 @Component({
   selector: 'app-search-view',
   standalone: true,
-  imports: [FormsModule, BookCardComponent],
+  imports: [BookCardComponent, RouterLink],
   template: `
     <section class="sect">
-      <button class="crumb" (click)="navHome.emit()">&#x2190; {{ i18n()['nav_home'] }}</button>
+      <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
       <header class="filter-head filter-head--search">
         <div class="filter-head-inner">
           <div class="filter-head-kicker">{{ i18n()['nav_search'] }}</div>
           <input
             class="search-bigbox"
-            [(ngModel)]="query"
+            [value]="q()"
             [placeholder]="i18n()['search_placeholder']"
             autofocus
-            (ngModelChange)="onQueryChange($event)"
+            (input)="onInput($event)"
           />
           <div class="filter-head-count">
-            {{ query() ? (total() + ' ' + i18n()['search_results']) : '&#x2014;' }}
+            {{ q() ? (total() + ' ' + i18n()['search_results']) : '&#x2014;' }}
           </div>
         </div>
       </header>
-      @if (query() && !loading() && results().length === 0) {
+      @if (q() && !loading() && results().length === 0) {
         <div class="empty">{{ i18n()['search_no_results'] }}</div>
       }
       <div class="catalog-grid">
         @for (b of results(); track b.id) {
-          <app-book-card [book]="b" [lang]="lang()" (open)="open.emit($event)" />
+          <app-book-card [book]="b" />
         }
       </div>
     </section>
   `,
 })
 export class SearchViewComponent {
-  lang = input<string>('en');
-  query = model<string>('');
-  open = output<Book>();
-  navHome = output<void>();
+  q = input<string>('');
 
+  private router = inject(Router);
+  private langSvc = inject(LangService);
   private svc = inject(BooksService);
-  i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+
+  i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
   results = signal<Book[]>([]);
   total = signal(0);
   loading = signal(false);
@@ -55,7 +56,7 @@ export class SearchViewComponent {
   private search$ = new RxSubject<string>();
 
   constructor() {
-    effect(() => { this.search$.next(this.query()); });
+    effect(() => { this.search$.next(this.q()); });
 
     this.search$.pipe(
       debounceTime(250),
@@ -79,7 +80,8 @@ export class SearchViewComponent {
     });
   }
 
-  onQueryChange(q: string) {
-    this.search$.next(q);
+  onInput(e: Event) {
+    const val = (e.target as HTMLInputElement).value;
+    this.router.navigate(['/search'], { queryParams: { q: val }, replaceUrl: true });
   }
 }

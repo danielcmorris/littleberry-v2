@@ -1,16 +1,18 @@
-import { Component, input, output, computed } from '@angular/core';
+import { Component, input, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Book } from '../../core/book.model';
+import { LangService } from '../../core/lang.service';
 import { I18N } from '../../core/i18n.tokens';
 import { CoverComponent } from '../cover/cover.component';
 
 @Component({
   selector: 'app-book-card',
   standalone: true,
-  imports: [CoverComponent],
+  imports: [CoverComponent, RouterLink],
   template: `
-    <button [class]="'bookcard bookcard--' + size()" (click)="open.emit(book())">
+    <button [class]="'bookcard bookcard--' + size()" [routerLink]="bookRoute()">
       <div class="bookcard-cover">
-        <app-cover [book]="book()" [lang]="lang()" />
+        <app-cover [book]="book()" />
         @if (isNew()) {
           <span class="bookcard-newbadge">{{ i18n()['new_label'] }}</span>
         }
@@ -28,11 +30,17 @@ import { CoverComponent } from '../cover/cover.component';
 })
 export class BookCardComponent {
   book = input.required<Book>();
-  lang = input<string>('en');
   size = input<string>('md');
-  open = output<Book>();
 
-  i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+  private langSvc = inject(LangService);
+  i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
+
+  bookRoute = computed(() => {
+    const b = this.book();
+    const prefix = b.prefix || '';
+    const num = prefix ? b.call_number.substring(prefix.length) : b.call_number;
+    return ['/', prefix || b.call_number, num || '_'];
+  });
 
   isNew(): boolean {
     return (this.book().book_id ?? 0) >= 12000;

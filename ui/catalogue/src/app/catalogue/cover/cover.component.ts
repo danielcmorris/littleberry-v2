@@ -17,11 +17,11 @@ import { BooksService } from '../../core/books.service';
           (error)="imgError.set(true)"
         />
         @if (imgError()) {
-          <app-cover-placeholder [book]="book()" [ratio]="ratio()" [small]="small()" [lang]="lang()" />
+          <app-cover-placeholder [book]="book()" [ratio]="ratio()" [small]="small()" />
         }
       </div>
     } @else {
-      <app-cover-placeholder [book]="book()" [ratio]="ratio()" [small]="small()" [lang]="lang()" />
+      <app-cover-placeholder [book]="book()" [ratio]="ratio()" [small]="small()" />
     }
   `,
 })

@@ -1,4 +1,5 @@
-import { Component, input, output, inject, computed, OnInit, signal } from '@angular/core';
+import { Component, inject, computed, OnInit, signal } from '@angular/core';
+import { LangService } from '../../core/lang.service';
 import { I18N } from '../../core/i18n.tokens';
 import { BookCardComponent } from '../book-card/book-card.component';
 import { BooksService } from '../../core/books.service';
@@ -37,7 +38,7 @@ function fmtDate(iso: string, lang: string): string {
         <div class="arrivals-grid">
           @for (b of recent(); track b.id; let i = $index) {
             <div [class]="'arrival arrival-' + i">
-              <app-book-card [book]="b" [lang]="lang()" [size]="i === 0 ? 'lg' : 'md'" (open)="open.emit($event)" />
+              <app-book-card [book]="b" [size]="i === 0 ? 'lg' : 'md'" />
               <div class="arrival-added">{{ fmt(b.added) }}</div>
             </div>
           }
@@ -47,11 +48,10 @@ function fmtDate(iso: string, lang: string): string {
   `,
 })
 export class NewArrivalsComponent implements OnInit {
-  lang = input<string>('en');
-  open = output<Book>();
-
+  private langSvc = inject(LangService);
   private svc = inject(BooksService);
-  i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+
+  i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
   recent = signal<Book[]>([]);
   loading = signal(true);
   monthCount = signal(0);
@@ -65,6 +65,6 @@ export class NewArrivalsComponent implements OnInit {
   }
 
   fmt(iso: string): string {
-    return fmtDate(iso, this.lang());
+    return fmtDate(iso, this.langSvc.lang());
   }
 }

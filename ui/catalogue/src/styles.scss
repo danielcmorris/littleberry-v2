@@ -940,6 +940,20 @@ em { font-style: italic; }
   margin-top: 2px;
 }
 
+/* ───── Book detail page ───── */
+.book-detail-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 32px 0;
+}
+.book-detail-loading {
+  padding: 80px 32px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  opacity: 0.5;
+}
+
 /* ───── Footer ───── */
 .site-foot {
   margin-top: 80px;

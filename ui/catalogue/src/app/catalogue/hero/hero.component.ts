@@ -1,5 +1,7 @@
-import { Component, input, output, inject, computed } from '@angular/core';
+import { Component, input, inject, computed } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Book } from '../../core/book.model';
+import { LangService } from '../../core/lang.service';
 import { I18N } from '../../core/i18n.tokens';
 import { CoverComponent } from '../cover/cover.component';
 import { BooksService } from '../../core/books.service';
@@ -7,13 +9,13 @@ import { BooksService } from '../../core/books.service';
 @Component({
   selector: 'app-hero',
   standalone: true,
-  imports: [CoverComponent],
+  imports: [CoverComponent, RouterLink],
   template: `
     <section class="hero">
       <div class="hero-azulejo" aria-hidden="true"></div>
       <div class="hero-inner">
-        <button class="hero-cover" (click)="open.emit(book())">
-          <app-cover [book]="book()" [lang]="lang()" />
+        <button class="hero-cover" [routerLink]="bookRoute()">
+          <app-cover [book]="book()" />
         </button>
         <div class="hero-body">
           <div class="hero-kicker">
@@ -37,7 +39,7 @@ import { BooksService } from '../../core/books.service';
               <span class="hero-meta-v hero-call">{{ book().call_number }}</span>
             </div>
           </div>
-          <button class="hero-cta" (click)="open.emit(book())">
+          <button class="hero-cta" [routerLink]="bookRoute()">
             {{ i18n()['view_book'] }} <span aria-hidden="true">&#x2192;</span>
           </button>
         </div>
@@ -47,11 +49,19 @@ import { BooksService } from '../../core/books.service';
 })
 export class HeroComponent {
   book = input.required<Book>();
-  lang = input<string>('en');
-  open = output<Book>();
 
+  private langSvc = inject(LangService);
   private svc = inject(BooksService);
+
+  lang = computed(() => this.langSvc.lang());
   i18n = computed(() => I18N[this.lang()] ?? I18N['en']);
+
+  bookRoute = computed(() => {
+    const b = this.book();
+    const prefix = b.prefix || '';
+    const num = prefix ? b.call_number.substring(prefix.length) : b.call_number;
+    return ['/', prefix || b.call_number, num || '_'];
+  });
 
   subjectPt = computed(() => {
     const subj = this.svc.subjects().find(s => s.key === this.book().subject);

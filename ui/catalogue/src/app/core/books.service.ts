@@ -61,6 +61,7 @@ export class BooksService {
 
   readonly totalBooks = signal<number>(0);
   readonly subjects = signal<Subject[]>([]);
+  readonly authors = signal<ApiAuthor[]>([]);
 
   loadStats() {
     return this.http.get<{ totalBooks: number }>(`${API}/stats`).pipe(
@@ -83,7 +84,9 @@ export class BooksService {
 
   loadAuthors(pageSize = 500): Observable<ApiAuthor[]> {
     const params = new HttpParams().set('pageSize', pageSize);
-    return this.http.get<ApiAuthor[]>(`${API}/authors`, { params });
+    return this.http.get<ApiAuthor[]>(`${API}/authors`, { params }).pipe(
+      tap(a => this.authors.set(a))
+    );
   }
 
   getBooks(opts: { search?: string; subject?: string; author?: string; page?: number; pageSize?: number } = {}): Observable<BookPage> {
