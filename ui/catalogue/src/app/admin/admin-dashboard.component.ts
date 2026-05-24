@@ -25,7 +25,7 @@ const TILES = [
     key: 'subjects' as keyof AdminStats,
     label: 'Subjects',
     description: 'Subject categories and prefixes',
-    path: '/subjects',
+    path: '/admin/subjects',
     accent: '#234876',
     letter: 'S',
   },

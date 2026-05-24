@@ -1091,12 +1091,33 @@ em { font-style: italic; }
 /* ───── Edit page ───── */
 .edit-strip {
   position: sticky; top: 61px; z-index: 40;
-  display: flex; align-items: center; gap: 16px;
+  display: flex; flex-direction: column; gap: 4px;
   background: color-mix(in oklab, var(--paper) 94%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  padding: 10px 32px;
+  padding: 10px 32px 14px;
   border-bottom: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
+}
+.edit-strip-row {
+  display: flex; align-items: center; gap: 16px; width: 100%;
+}
+.edit-strip-title {
+  font-family: var(--serif);
+  font-size: 22px; font-weight: 600; line-height: 1.25;
+  color: var(--ink);
+  background: none; border: none; padding: 2px 0 0;
+  text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%; min-height: 1.4em;
+  &:hover { color: var(--accent); }
+}
+.edit-strip-menu-wrap { position: relative; }
+.edit-strip-dots {
+  background: none; border: none;
+  font-size: 20px; line-height: 1;
+  color: color-mix(in oklab, var(--ink) 55%, transparent);
+  padding: 4px 7px; border-radius: 4px; cursor: pointer;
+  &:hover { background: color-mix(in oklab, var(--ink) 8%, transparent); color: var(--ink); }
 }
 .edit-strip-crumb {
   display: flex; align-items: center; gap: 6px;
@@ -1704,4 +1725,94 @@ em { font-style: italic; }
 .acatalog-grid-wrap {
   flex: 1;
   min-height: 0;
+}
+
+/* ── Admin Subjects ── */
+.asubj-page { min-height: 100vh; }
+.asubj-body { max-width: 860px; margin: 0 auto; padding: 32px; }
+.asubj-loading { padding: 40px 0; color: color-mix(in oklab, var(--ink) 50%, transparent); font-family: var(--mono); font-size: 13px; }
+
+.asubj-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink) 50%, transparent);
+    padding: 0 16px 10px 0;
+    border-bottom: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
+  }
+
+  td {
+    padding: 11px 16px 11px 0;
+    border-bottom: 1px solid color-mix(in oklab, var(--ink) 7%, transparent);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: color-mix(in oklab, var(--accent) 4%, transparent); }
+}
+
+.asubj-prefix {
+  font-family: var(--mono); font-size: 13px;
+  color: var(--accent); font-weight: 600;
+}
+
+.asubj-num {
+  text-align: right; padding-right: 32px !important;
+  font-family: var(--mono); font-size: 13px;
+}
+
+.asubj-actions {
+  text-align: right;
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+
+.asubj-btn {
+  border: 1px solid color-mix(in oklab, var(--ink) 15%, transparent);
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  color: var(--ink);
+  padding: 4px 12px; border-radius: 4px;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; cursor: pointer;
+  &:hover:not(:disabled) { background: color-mix(in oklab, var(--ink) 12%, transparent); }
+  &:disabled { opacity: 0.3; cursor: default; }
+}
+
+.asubj-btn--danger {
+  color: #b03020;
+  border-color: color-mix(in oklab, #b03020 30%, transparent);
+  &:hover:not(:disabled) { background: color-mix(in oklab, #b03020 8%, transparent); }
+}
+
+.asubj-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: color-mix(in oklab, var(--ink) 40%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.asubj-dialog {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 101;
+  background: var(--paper);
+  border: 1px solid color-mix(in oklab, var(--ink) 12%, transparent);
+  border-radius: 8px;
+  padding: 28px 28px 24px;
+  width: 420px;
+  box-shadow: 0 8px 40px color-mix(in oklab, var(--ink) 22%, transparent);
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.asubj-dialog-title {
+  font-family: var(--serif); font-size: 22px; font-weight: 600;
+  color: var(--ink); margin-bottom: 2px;
+}
+
+.asubj-dialog-actions {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;
 }

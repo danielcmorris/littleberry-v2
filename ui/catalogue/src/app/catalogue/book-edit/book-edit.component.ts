@@ -20,29 +20,45 @@ import { I18N } from '../../core/i18n.tokens';
     } @else if (data() || isNew()) {
 
       <div class="edit-strip">
-        @if (fromAdmin() || isNew()) {
-          <nav class="edit-strip-crumb">
-            <a class="edit-strip-crumb-link" routerLink="/admin">Admin</a>
-            <span class="edit-strip-crumb-sep">›</span>
-            <a class="edit-strip-crumb-link" routerLink="/admin/catalog">Catalogue</a>
-            <span class="edit-strip-crumb-sep">›</span>
-            <span class="edit-strip-crumb-current">
-              @if (isNew()) { New Record } @else { {{ callNumber() }}{{ data()?.work?.title ? ' ' + data()!.work.title : '' }} }
-            </span>
-          </nav>
-        } @else {
-          <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
-        }
-        <div class="edit-actions">
-          @if (saved()) {
-            <span class="edit-saved-msg">{{ i18n()['edit_saved'] }}</span>
+        <div class="edit-strip-row">
+          @if (fromAdmin() || isNew()) {
+            <nav class="edit-strip-crumb">
+              <a class="edit-strip-crumb-link" routerLink="/admin">Admin</a>
+              <span class="edit-strip-crumb-sep">›</span>
+              <a class="edit-strip-crumb-link" routerLink="/admin/catalog">Catalogue</a>
+              @if (isNew()) {
+                <span class="edit-strip-crumb-sep">›</span>
+                <span class="edit-strip-crumb-current">New Record</span>
+              }
+            </nav>
+          } @else {
+            <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
           }
-          <button class="edit-btn edit-btn--cancel" (click)="cancel()">{{ i18n()['edit_cancel'] }}</button>
-          <a class="edit-btn edit-btn--new" routerLink="/admin/new">+ New</a>
-          <button class="edit-btn edit-btn--save" (click)="save()" [disabled]="saving()">
-            {{ saving() ? '…' : i18n()['edit_save'] }}
-          </button>
+          <div class="edit-actions">
+            @if (saved()) {
+              <span class="edit-saved-msg">{{ i18n()['edit_saved'] }}</span>
+            }
+            <button class="edit-btn edit-btn--cancel" (click)="cancel()">{{ i18n()['edit_cancel'] }}</button>
+            <button class="edit-btn edit-btn--save" (click)="save()" [disabled]="saving()">
+              {{ saving() ? '…' : i18n()['edit_save'] }}
+            </button>
+            <div class="edit-strip-menu-wrap">
+              <button type="button" class="edit-strip-dots" (click)="toggleStripMenu()">⋮</button>
+              @if (stripMenuOpen()) {
+                <div class="edit-menu-backdrop" (click)="closeStripMenu()"></div>
+                <div class="edit-section-menu">
+                  <button type="button" class="edit-menu-item" routerLink="/admin/new" (click)="closeStripMenu()">Add new</button>
+                  @if (!isNew()) {
+                    <button type="button" class="edit-menu-item edit-menu-item--danger" (click)="deleteRecord()">Delete</button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
         </div>
+        <button type="button" class="edit-strip-title" (click)="focusTitle()">
+          {{ form.value.title || (isNew() ? '' : '…') }}
+        </button>
       </div>
 
       <div class="edit-body">
@@ -59,7 +75,7 @@ import { I18N } from '../../core/i18n.tokens';
                 <div class="edit-row">
                   <div class="edit-field edit-field--grow">
                     <label class="edit-field-label">Title</label>
-                    <input class="edit-input" formControlName="title" />
+                    <input class="edit-input" formControlName="title" #titleInput />
                   </div>
                   <div class="edit-field edit-field--grow">
                     <label class="edit-field-label">Subtitle</label>
@@ -176,6 +192,8 @@ import { I18N } from '../../core/i18n.tokens';
                       <option value="checked_out">Checked out</option>
                       <option value="missing">Missing</option>
                       <option value="reference">Reference only</option>
+                      <option value="lost">Lost</option>
+                      <option value="deleted">Deleted</option>
                     </select>
                   </div>
                   <div class="edit-field">
@@ -511,11 +529,13 @@ export class BookEditComponent {
   holdingMenuOpen = signal(false);
   addingHolding = signal(false);
   newHoldingNum = signal('');
+  stripMenuOpen = signal(false);
 
   currentCoverUrl = computed(() => this.coverPreview() || this.form.value.coverUrl || null);
 
   coverFileRef = viewChild<ElementRef>('coverFileInput');
   fileInputRef = viewChild<ElementRef>('fileInput');
+  titleInputRef = viewChild<ElementRef>('titleInput');
 
   constructor() {
     effect((onCleanup) => {
@@ -756,6 +776,21 @@ export class BookEditComponent {
     this.svc.uploadFile(this.callNumber(), file).subscribe({
       next: () => this.svc.getBookForEdit(this.callNumber()).subscribe(d => this.digitalCopies.set(d.digitalCopies)),
     });
+  }
+
+  toggleStripMenu() { this.stripMenuOpen.update(v => !v); }
+  closeStripMenu() { this.stripMenuOpen.set(false); }
+
+  focusTitle() {
+    this.sectRecord.set(true);
+    setTimeout(() => this.titleInputRef()?.nativeElement?.focus(), 50);
+  }
+
+  deleteRecord() {
+    this.closeStripMenu();
+    if (!confirm(`Mark "${this.form.value.title}" as deleted?`)) return;
+    this.form.patchValue({ availabilityStatus: 'deleted' });
+    this.save();
   }
 
   toggleHoldingMenu() { this.holdingMenuOpen.update(v => !v); this.addingHolding.set(false); }

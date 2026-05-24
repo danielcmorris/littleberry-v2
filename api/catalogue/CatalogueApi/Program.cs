@@ -187,6 +187,40 @@ app.MapGet("/api/subjects", async (IDbConnection db) =>
     }));
 });
 
+// Create subject
+app.MapPost("/api/subjects", async (IDbConnection db, SubjectDto dto) =>
+{
+    if (string.IsNullOrWhiteSpace(dto.Term) || string.IsNullOrWhiteSpace(dto.Prefix))
+        return Results.BadRequest("Term and Prefix are required.");
+    var id = Guid.NewGuid();
+    await db.ExecuteAsync(
+        "INSERT INTO subjects (id, term, prefix, last_book_number) VALUES (@id, @Term, @Prefix, @LastBookNumber)",
+        new { id, dto.Term, dto.Prefix, dto.LastBookNumber });
+    return Results.Created($"/api/subjects/{id}",
+        new { id, term = dto.Term, prefix = dto.Prefix, lastBookNumber = dto.LastBookNumber, bookCount = 0 });
+});
+
+// Update subject
+app.MapPut("/api/subjects/{id:guid}", async (IDbConnection db, Guid id, SubjectDto dto) =>
+{
+    if (string.IsNullOrWhiteSpace(dto.Term) || string.IsNullOrWhiteSpace(dto.Prefix))
+        return Results.BadRequest("Term and Prefix are required.");
+    var affected = await db.ExecuteAsync(
+        "UPDATE subjects SET term=@Term, prefix=@Prefix, last_book_number=@LastBookNumber WHERE id=@id",
+        new { dto.Term, dto.Prefix, dto.LastBookNumber, id });
+    return affected > 0 ? Results.NoContent() : Results.NotFound();
+});
+
+// Delete subject (only if no works reference it)
+app.MapDelete("/api/subjects/{id:guid}", async (IDbConnection db, Guid id) =>
+{
+    var worksCount = await db.ExecuteScalarAsync<int>(
+        "SELECT COUNT(*) FROM works WHERE subject_id = @id", new { id });
+    if (worksCount > 0) return Results.BadRequest("Subject has associated works and cannot be deleted.");
+    var affected = await db.ExecuteAsync("DELETE FROM subjects WHERE id = @id", new { id });
+    return affected > 0 ? Results.NoContent() : Results.NotFound();
+});
+
 // Authors index
 app.MapGet("/api/authors", async (IDbConnection db, string? letter, int page = 1, int pageSize = 200) =>
 {
@@ -888,6 +922,7 @@ record BookUpdateDto(
     string? SubjectId, string? CallNumber, string? Prefix, string? BookNumber
 );
 
+record SubjectDto(string Term, string Prefix, int LastBookNumber);
 record DigitalCopyDto(string? Provider, string Url, string? Format, string? Access);
 record NewHoldingDto(string Prefix, string BookNumber);
 record AuthorDto(string Name, string? Role);
