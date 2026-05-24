@@ -48,6 +48,9 @@ import { CoverComponent } from '../cover/cover.component';
           <div class="modal-right">
             <div class="modal-kicker">{{ i18n()['detail_record'] }}</div>
             <h2 class="modal-title">{{ book()!.title }}</h2>
+            @if (book()!.subtitle) {
+              <div class="modal-subtitle">{{ book()!.subtitle }}</div>
+            }
             <div class="modal-author">
               {{ i18n()['by'] }}
               <button class="modal-author-link" [routerLink]="['/author', book()!.author]">{{ book()!.author }}</button>
@@ -71,6 +74,24 @@ import { CoverComponent } from '../cover/cover.component';
                   <dd>{{ book()!.publisher }}@if (book()!.publisher_city) {, {{ book()!.publisher_city }}}</dd>
                 </div>
               }
+              @if (book()!.series) {
+                <div>
+                  <dt>Series</dt>
+                  <dd>{{ book()!.series }}</dd>
+                </div>
+              }
+              @if (book()!.pageCount) {
+                <div>
+                  <dt>Pages</dt>
+                  <dd>{{ book()!.pageCount }}</dd>
+                </div>
+              }
+              @if (book()!.isbn13 || book()!.isbn10) {
+                <div>
+                  <dt>ISBN</dt>
+                  <dd>{{ book()!.isbn13 || book()!.isbn10 }}</dd>
+                </div>
+              }
               <div>
                 <dt>{{ i18n()['detail_subject'] }}</dt>
                 <dd>
@@ -87,6 +108,9 @@ import { CoverComponent } from '../cover/cover.component';
                 </div>
               }
             </dl>
+            @if (book()!.description) {
+              <p class="modal-description">{{ book()!.description }}</p>
+            }
             @if (otherBooks().length > 0) {
               <div class="modal-other">
                 <div class="modal-other-h">{{ i18n()['detail_other'] }}</div>

@@ -88,6 +88,52 @@ import { I18N } from '../../core/i18n.tokens';
             }
           </div>
 
+          <!-- Authors -->
+          <div class="edit-section">
+            <button type="button" class="edit-section-header" (click)="sectAuthors.set(!sectAuthors())">
+              <span class="edit-section-chevron">{{ sectAuthors() ? '▼' : '▶' }}</span>
+              Authors
+            </button>
+            @if (sectAuthors()) {
+              <div class="edit-section-body">
+                @for (a of authors(); track a.id) {
+                  <div class="edit-author-row">
+                    <span class="edit-author-name">{{ a.name }}</span>
+                    <span class="edit-author-role">{{ a.role || '' }}</span>
+                    <button class="edit-digital-del" type="button" (click)="removeAuthor(a.id)" title="Remove">&#x2715;</button>
+                  </div>
+                }
+                @if (authors().length === 0) {
+                  <p class="edit-empty">No authors on record.</p>
+                }
+                <div class="edit-new-copy-form">
+                  <form [formGroup]="newAuthorForm" (ngSubmit)="addAuthor()">
+                    <div class="edit-row">
+                      <div class="edit-field edit-field--grow">
+                        <label class="edit-field-label">Name *</label>
+                        <input class="edit-input" formControlName="authorName"
+                               list="author-suggestions" placeholder="Author name…" autocomplete="off" />
+                        <datalist id="author-suggestions">
+                          @for (a of svc.authors(); track a.id) {
+                            <option [value]="a.name"></option>
+                          }
+                        </datalist>
+                      </div>
+                      <div class="edit-field">
+                        <label class="edit-field-label">Role</label>
+                        <input class="edit-input edit-input--sm" formControlName="authorRole" placeholder="author, editor…" />
+                      </div>
+                      <div class="edit-field edit-field--btn">
+                        <label class="edit-field-label">&nbsp;</label>
+                        <button type="submit" class="edit-btn edit-btn--sm" [disabled]="newAuthorForm.invalid">Add</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            }
+          </div>
+
           <!-- Publisher & Identifiers -->
           <div class="edit-section">
             <button type="button" class="edit-section-header" (click)="sectPublisher.set(!sectPublisher())">
@@ -352,6 +398,7 @@ export class BookEditComponent {
   data = signal<BookEditData | null>(null);
 
   sectRecord = signal(true);
+  sectAuthors = signal(true);
   sectPublisher = signal(true);
   sectHolding = signal(true);
   sectCover = signal(true);
@@ -393,7 +440,13 @@ export class BookEditComponent {
     access: ['open'],
   });
 
+  newAuthorForm = this.fb.group({
+    authorName: ['', Validators.required],
+    authorRole: [''],
+  });
+
   digitalCopies = signal<BookEditData['digitalCopies']>([]);
+  authors = signal<BookEditData['authors']>([]);
   coverPreview = signal<string | null>(null);
   coverUploading = signal(false);
 
@@ -412,6 +465,7 @@ export class BookEditComponent {
         next: d => {
           this.data.set(d);
           this.digitalCopies.set(d.digitalCopies);
+          this.authors.set(d.authors);
           this.form.patchValue({
             title: d.work.title ?? '',
             subtitle: d.work.subtitle ?? '',
@@ -576,6 +630,23 @@ export class BookEditComponent {
   deleteDigitalCopy(id: string) {
     this.svc.deleteDigitalCopy(this.callNumber(), id).subscribe({
       next: () => this.digitalCopies.update(copies => copies.filter(c => c.id !== id)),
+    });
+  }
+
+  addAuthor() {
+    if (this.newAuthorForm.invalid) return;
+    const v = this.newAuthorForm.getRawValue();
+    this.svc.addAuthor(this.callNumber(), v.authorName!, v.authorRole || null).subscribe({
+      next: (a) => {
+        this.authors.update(list => [...list, { id: a.id, name: a.name, ord: a.ord, role: a.role }]);
+        this.newAuthorForm.reset({ authorName: '', authorRole: '' });
+      },
+    });
+  }
+
+  removeAuthor(authorId: string) {
+    this.svc.removeAuthor(this.callNumber(), authorId).subscribe({
+      next: () => this.authors.update(list => list.filter(a => a.id !== authorId)),
     });
   }
 

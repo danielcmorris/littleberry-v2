@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { Component, inject, computed, signal, input, effect } from '@angular/core';
 import { Router } from '@angular/router';
 import { LangService } from '../../core/lang.service';
 import { BooksService, ApiAuthor } from '../../core/books.service';
@@ -23,8 +23,10 @@ import { I18N } from '../../core/i18n.tokens';
       </header>
       <nav class="author-alpha-nav" id="author-nav">
         @for (entry of ordered(); track entry[0]) {
-          <a class="author-alpha-link" href="#"
-            (click)="$event.preventDefault(); scrollTo(entry[0])">{{ entry[0] }}</a>
+          <a class="author-alpha-link"
+            [class.author-alpha-link--active]="letter()?.toUpperCase() === entry[0]"
+            (click)="$event.preventDefault(); goToLetter(entry[0])"
+            href="#">{{ entry[0] }}</a>
         }
       </nav>
       <div class="author-index">
@@ -32,8 +34,9 @@ import { I18N } from '../../core/i18n.tokens';
           <div class="author-letter-block" [id]="'author-' + entry[0]">
             <div class="author-letter-row">
               <div class="author-letter">{{ entry[0] }}</div>
-              <a class="author-back-top" href="#"
-                (click)="$event.preventDefault(); scrollToTop()">↑ top</a>
+              <a class="author-back-top"
+                (click)="$event.preventDefault(); goToTop()"
+                href="#">↑ top</a>
             </div>
             <ul class="author-list">
               @for (a of entry[1]; track a.name) {
@@ -51,6 +54,8 @@ import { I18N } from '../../core/i18n.tokens';
   `,
 })
 export class AuthorIndexComponent {
+  letter = input<string>('');
+
   private router = inject(Router);
   private langSvc = inject(LangService);
   private svc = inject(BooksService);
@@ -58,6 +63,17 @@ export class AuthorIndexComponent {
   i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
   authors = computed(() => this.svc.authors());
   query = signal('');
+
+  constructor() {
+    effect(() => {
+      const l = this.letter()?.toUpperCase();
+      const loaded = this.authors().length > 0;
+      if (!l || !loaded) return;
+      setTimeout(() => {
+        document.getElementById('author-' + l)?.scrollIntoView({ behavior: 'smooth' });
+      }, 0);
+    });
+  }
 
   ordered = computed(() => {
     const q = this.query().toLowerCase().trim();
@@ -82,11 +98,11 @@ export class AuthorIndexComponent {
     this.router.navigate(['/author', name]);
   }
 
-  scrollTo(letter: string) {
-    document.getElementById('author-' + letter)?.scrollIntoView({ behavior: 'smooth' });
+  goToLetter(letter: string) {
+    this.router.navigate(['/authors', letter.toLowerCase()]);
   }
 
-  scrollToTop() {
-    document.getElementById('author-nav')?.scrollIntoView({ behavior: 'smooth' });
+  goToTop() {
+    this.router.navigate(['/authors']);
   }
 }

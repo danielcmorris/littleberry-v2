@@ -5,6 +5,7 @@ export interface Book {
   prefix: string;
   title: string;
   title_pt: string;
+  subtitle: string | null;
   author: string;
   author_raw: string;
   subject: string;
@@ -13,6 +14,11 @@ export interface Book {
   language: string | null;
   publisher: string | null;
   publisher_city: string | null;
+  series: string | null;
+  description: string | null;
+  isbn10: string | null;
+  isbn13: string | null;
+  pageCount: number | null;
   notes: string | null;
   has_cover: boolean;
   cover_url: string | null;

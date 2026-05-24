@@ -26,11 +26,23 @@ app.UseHttpsRedirection();
 // ── Endpoints ──────────────────────────────────────────────────────────
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
+// Admin stats
+app.MapGet("/api/admin/stats", async (IDbConnection db) =>
+{
+    var subjects  = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM subjects");
+    var authors   = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM authors");
+    var files     = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM digital_copies")
+                  + await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM media");
+    return Results.Ok(new { subjects, authors, files, requests = 0, shipments = 0 });
+});
+
 // Stats
 app.MapGet("/api/stats", async (IDbConnection db) =>
 {
-    var total = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM holdings");
-    var withCover = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM holdings WHERE cover_url IS NOT NULL");
+    var total = await db.ExecuteScalarAsync<long>(
+        "SELECT COUNT(*) FROM holdings WHERE availability_status IS NULL OR availability_status NOT IN ('missing', 'withdrawn', 'lost')");
+    var withCover = await db.ExecuteScalarAsync<long>(
+        "SELECT COUNT(*) FROM holdings WHERE cover_url IS NOT NULL AND (availability_status IS NULL OR availability_status NOT IN ('missing', 'withdrawn', 'lost'))");
     return Results.Ok(new { totalBooks = total, booksWithCover = withCover });
 });
 
@@ -97,7 +109,15 @@ app.MapGet("/api/books", async (IDbConnection db,
 
     if (!string.IsNullOrWhiteSpace(search))
     {
-        where.Add("(to_tsvector('simple', w.title) @@ plainto_tsquery('simple', @search) OR lower(a.name) LIKE @searchLike OR lower(h.call_number) LIKE @searchLike OR h.book_id::text LIKE @searchLike OR h.book_number::text LIKE @searchLike)");
+        // Full-text search across title + author combined so multi-word queries like
+        // "Pessoa poetry" match books where each token appears in either field.
+        // The LIKE fallback catches call numbers and partial-word matches.
+        where.Add(@"(
+            to_tsvector('simple', w.title || ' ' || coalesce(a.name, '')) @@ plainto_tsquery('simple', @search)
+            OR lower(h.call_number) LIKE @searchLike
+            OR h.book_id::text LIKE @searchLike
+            OR h.book_number::text LIKE @searchLike
+        )");
         parameters.Add("search", search.Trim());
         parameters.Add("searchLike", "%" + search.Trim().ToLower() + "%");
     }
@@ -159,15 +179,16 @@ app.MapGet("/api/books", async (IDbConnection db,
     });
 });
 
-// Single book by call number — must come before /edit route match order doesn't matter in MapGet
+// Single book by call number
 app.MapGet("/api/books/{callNumber}", async (IDbConnection db, string callNumber) =>
 {
     const string sql = @"
         SELECT h.id, h.book_id, h.call_number, h.prefix, h.cover_url,
-               w.id AS work_id, w.title,
+               w.id AS work_id, w.title, w.subtitle, w.description, w.series,
                a.name AS author,
                s.term AS subject, s.prefix AS subject_prefix,
                e.publication_year AS year, e.language,
+               e.isbn_10, e.isbn_13, e.page_count, e.physical_description,
                p.name AS publisher, p.place AS publisher_city,
                h.book_number
         FROM holdings h
@@ -189,7 +210,14 @@ app.MapGet("/api/books/{callNumber}", async (IDbConnection db, string callNumber
     var book = MapBook(row);
     return Results.Ok(new {
         book.id, book.bookId, book.callNumber, book.prefix, book.coverUrl, book.hasCover,
-        book.workId, book.title, book.author, book.subject, book.subjectPrefix,
+        book.workId, book.title,
+        subtitle   = (string?)row.subtitle,
+        description = (string?)row.description,
+        series     = (string?)row.series,
+        isbn10     = (string?)row.isbn_10,
+        isbn13     = (string?)row.isbn_13,
+        pageCount  = row.page_count == null ? (int?)null : (int)row.page_count,
+        book.author, book.subject, book.subjectPrefix,
         book.year, book.language, book.publisher, book.publisherCity, book.notes,
         digitalCopies
     });
@@ -396,6 +424,52 @@ app.MapDelete("/api/books/{callNumber}/digital/{id}", async (IDbConnection db, s
     return affected > 0 ? Results.NoContent() : Results.NotFound();
 });
 
+// Add author to work (find-or-create author, then upsert work_authors)
+app.MapPost("/api/books/{callNumber}/authors", async (IDbConnection db, string callNumber, AuthorDto dto) =>
+{
+    var ids = await db.QueryFirstOrDefaultAsync(
+        @"SELECT e.work_id FROM holdings h JOIN editions e ON e.id = h.edition_id WHERE upper(h.call_number) = upper(@callNumber) LIMIT 1",
+        new { callNumber });
+    if (ids == null) return Results.NotFound();
+    var workId = (Guid)ids.work_id;
+
+    var authorId = await db.QueryFirstOrDefaultAsync<Guid?>(
+        @"SELECT id FROM authors WHERE lower(name) = lower(@name) LIMIT 1",
+        new { dto.Name });
+    if (authorId == null)
+    {
+        authorId = Guid.NewGuid();
+        var normalized = dto.Name.Trim().ToLower();
+        await db.ExecuteAsync(
+            @"INSERT INTO authors (id, name, normalized_name) VALUES (@authorId, @name, @normalized)",
+            new { authorId, name = dto.Name.Trim(), normalized });
+    }
+
+    var maxOrd = await db.ExecuteScalarAsync<int?>(
+        @"SELECT MAX(ord) FROM work_authors WHERE work_id = @workId", new { workId }) ?? 0;
+    var role = string.IsNullOrWhiteSpace(dto.Role) ? null : dto.Role.Trim();
+
+    await db.ExecuteAsync(
+        @"INSERT INTO work_authors (work_id, author_id, ord, role) VALUES (@workId, @authorId, @ord, @role)
+          ON CONFLICT (work_id, author_id) DO UPDATE SET role = @role",
+        new { workId, authorId, ord = maxOrd + 1, role });
+
+    return Results.Created($"/api/books/{callNumber}/authors", new { id = authorId, name = dto.Name.Trim(), ord = maxOrd + 1, role });
+});
+
+// Remove author from work
+app.MapDelete("/api/books/{callNumber}/authors/{authorId:guid}", async (IDbConnection db, string callNumber, Guid authorId) =>
+{
+    var workId = await db.QueryFirstOrDefaultAsync<Guid?>(
+        @"SELECT e.work_id FROM holdings h JOIN editions e ON e.id = h.edition_id WHERE upper(h.call_number) = upper(@callNumber) LIMIT 1",
+        new { callNumber });
+    if (workId == null) return Results.NotFound();
+    var affected = await db.ExecuteAsync(
+        @"DELETE FROM work_authors WHERE work_id = @workId AND author_id = @authorId",
+        new { workId, authorId });
+    return affected > 0 ? Results.NoContent() : Results.NotFound();
+});
+
 // Remove cover
 app.MapDelete("/api/books/{callNumber}/cover", async (IDbConnection db, string callNumber) =>
 {
@@ -532,3 +606,4 @@ record BookUpdateDto(
 );
 
 record DigitalCopyDto(string? Provider, string Url, string? Format, string? Access);
+record AuthorDto(string Name, string? Role);

@@ -79,6 +79,7 @@ function mapBook(r: any): Book {
     prefix: r.prefix ?? '',
     title: r.title ?? '',
     title_pt: r.title ?? '',
+    subtitle: r.subtitle ?? null,
     author: r.author ?? '',
     author_raw: r.author ?? '',
     subject: r.subject ?? '',
@@ -87,6 +88,11 @@ function mapBook(r: any): Book {
     language: r.language ?? null,
     publisher: r.publisher ?? null,
     publisher_city: r.publisherCity ?? null,
+    series: r.series ?? null,
+    description: r.description ?? null,
+    isbn10: r.isbn10 ?? null,
+    isbn13: r.isbn13 ?? null,
+    pageCount: r.pageCount ?? null,
     notes: r.notes ?? null,
     has_cover: !!r.hasCover,
     cover_url: r.coverUrl ?? null,
@@ -179,5 +185,14 @@ export class BooksService {
     const fd = new FormData();
     fd.append('file', file);
     return this.http.post<{ url: string }>(`${API}/books/${encodeURIComponent(callNumber)}/files`, fd);
+  }
+
+  addAuthor(callNumber: string, name: string, role: string | null): Observable<{ id: string; name: string; ord: number; role: string | null }> {
+    return this.http.post<{ id: string; name: string; ord: number; role: string | null }>(
+      `${API}/books/${encodeURIComponent(callNumber)}/authors`, { name, role });
+  }
+
+  removeAuthor(callNumber: string, authorId: string): Observable<void> {
+    return this.http.delete<void>(`${API}/books/${encodeURIComponent(callNumber)}/authors/${authorId}`);
   }
 }

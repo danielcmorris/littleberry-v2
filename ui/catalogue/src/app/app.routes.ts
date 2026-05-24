@@ -8,12 +8,15 @@ import { SubjectViewComponent } from './catalogue/subject-view/subject-view.comp
 import { BookDetailComponent } from './catalogue/book-detail/book-detail.component';
 import { BookEditComponent } from './catalogue/book-edit/book-edit.component';
 import { CallbackComponent } from './catalogue/callback/callback.component';
+import { AdminDashboardComponent } from './admin/admin-dashboard.component';
 import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: HomePageComponent },
   { path: 'callback', component: CallbackComponent },
+  { path: 'admin', component: AdminDashboardComponent, canActivate: [authGuard] },
   { path: 'authors', component: AuthorIndexComponent },
+  { path: 'authors/:letter', component: AuthorIndexComponent },
   { path: 'subjects', component: SubjectTilesComponent },
   { path: 'search', component: SearchViewComponent },
   { path: 'author/:author', component: AuthorViewComponent },

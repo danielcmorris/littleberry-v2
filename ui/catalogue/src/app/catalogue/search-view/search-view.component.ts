@@ -20,17 +20,17 @@ import { Book } from '../../core/book.model';
           <div class="filter-head-kicker">{{ i18n()['nav_search'] }}</div>
           <input
             class="search-bigbox"
-            [value]="q()"
-            [placeholder]="i18n()['search_placeholder']"
+            [value]="q() ?? ''"
+            placeholder="Title, author, or call number…"
             autofocus
             (input)="onInput($event)"
           />
           <div class="filter-head-count">
-            {{ q() ? (total() + ' ' + i18n()['search_results']) : '&#x2014;' }}
+            {{ (q() ?? '') ? (total() + ' ' + i18n()['search_results']) : '&#x2014;' }}
           </div>
         </div>
       </header>
-      @if (q() && !loading() && results().length === 0) {
+      @if ((q() ?? '') && !loading() && results().length === 0) {
         <div class="empty">{{ i18n()['search_no_results'] }}</div>
       }
       <div class="catalog-grid">
@@ -56,13 +56,13 @@ export class SearchViewComponent {
   private search$ = new RxSubject<string>();
 
   constructor() {
-    effect(() => { this.search$.next(this.q()); });
+    effect(() => { this.search$.next(this.q() ?? ''); });
 
     this.search$.pipe(
       debounceTime(250),
       distinctUntilChanged(),
       switchMap(q => {
-        if (!q.trim()) {
+        if (!(q ?? '').trim()) {
           this.results.set([]);
           this.total.set(0);
           this.loading.set(false);
