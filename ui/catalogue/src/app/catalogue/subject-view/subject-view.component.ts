@@ -32,7 +32,7 @@ import { Book } from '../../core/book.model';
       } @else {
         <div class="catalog-grid">
           @for (b of books(); track b.id) {
-            <app-book-card [book]="b" />
+            <app-book-card [book]="b" [queryParams]="{ from: 'subject', ctx: subject() }" />
           }
         </div>
         @if (page() < totalPages()) {

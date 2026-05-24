@@ -19,9 +19,23 @@ import { CoverComponent } from '../cover/cover.component';
     } @else if (book()) {
       <div class="book-detail-page">
         <div class="book-detail-topbar">
-          <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
+          <nav class="breadcrumb">
+            <a class="breadcrumb-link" routerLink="/">{{ i18n()['nav_home'] }}</a>
+            @if (from() === 'author' && ctx()) {
+              <span class="breadcrumb-sep">›</span>
+              <a class="breadcrumb-link" [routerLink]="['/author', ctx()]">{{ ctx() }}</a>
+            } @else if (from() === 'subject' && ctx()) {
+              <span class="breadcrumb-sep">›</span>
+              <a class="breadcrumb-link" [routerLink]="['/subject', ctx()]">{{ ctx() }}</a>
+            } @else if (from() === 'search' && ctx()) {
+              <span class="breadcrumb-sep">›</span>
+              <a class="breadcrumb-link" routerLink="/search" [queryParams]="{ q: ctx() }">Search "{{ ctx() }}"</a>
+            }
+            <span class="breadcrumb-sep">›</span>
+            <span class="breadcrumb-current">{{ book()!.call_number }} — {{ book()!.title }}</span>
+          </nav>
           @if (authSvc.user()) {
-            <a class="detail-edit-link" [routerLink]="['/', prefix(), bookNumber(), 'edit']">{{ i18n()['edit_title'] }}</a>
+            <a class="detail-edit-link" [routerLink]="['/', prefix(), bookNumber(), 'edit']" [queryParams]="{ from: from() || null, ctx: ctx() || null }">{{ i18n()['edit_title'] }}</a>
           }
         </div>
         <div class="modal-grid">
@@ -138,6 +152,8 @@ import { CoverComponent } from '../cover/cover.component';
 export class BookDetailComponent {
   prefix = input<string>('');
   bookNumber = input<string>('');
+  from = input<string>('');
+  ctx = input<string>('');
 
   private svc = inject(BooksService);
   private langSvc = inject(LangService);

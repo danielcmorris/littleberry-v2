@@ -9,11 +9,12 @@ export interface BookEditData {
     id: string; callNumber: string; prefix: string; bookNumber: string;
     bookId: number | null; barcode: string | null; location: string | null;
     copyNotes: string | null; availabilityStatus: string | null;
-    acquisitionDate: string | null; coverUrl: string | null; subjectId: string | null;
+    acquisitionDate: string | null; coverUrl: string | null;
   };
   work: {
     id: string; title: string; subtitle: string | null; normalizedTitle: string | null;
     language: string | null; description: string | null; workType: string | null; series: string | null;
+    subjectId: string | null;
   };
   edition: {
     id: string; publicationYear: number | null; language: string | null;
@@ -26,6 +27,19 @@ export interface BookEditData {
   digitalCopies: { id: string; provider: string | null; url: string; format: string | null; verified: boolean | null; access: string | null }[];
   media: { id: string; type: string | null; url: string | null; localPath: string | null; caption: string | null }[];
   enrichment: any;
+}
+
+export interface BookCreateDto {
+  title: string; subtitle: string | null; description: string | null;
+  workType: string | null; series: string | null;
+  publicationYear: number | null; language: string | null;
+  isbn10: string | null; isbn13: string | null; lccn: string | null; oclc: string | null;
+  pageCount: number | null; physicalDescription: string | null;
+  publisherName: string | null; publisherPlace: string | null;
+  prefix: string; bookNumber: string;
+  location: string | null; barcode: string | null; copyNotes: string | null;
+  availabilityStatus: string | null; acquisitionDate: string | null; coverUrl: string | null;
+  subjectId: string | null;
 }
 
 export interface BookUpdateDto {
@@ -97,7 +111,7 @@ function mapBook(r: any): Book {
     has_cover: !!r.hasCover,
     cover_url: r.coverUrl ?? null,
     added: r.added ?? '',
-    digital_copies: r.digitalCopies ?? [],
+    digital_copies: r.digitalCopies ?? (r.hasDigital ? [{ id: '', provider: null, url: '', format: null, verified: null, access: null }] : []),
   };
 }
 
@@ -124,6 +138,7 @@ export class BooksService {
         prefix: r.prefix ?? '',
         tile: SUBJECT_COLORS[r.term] ?? '#1a4480',
         bookCount: r.bookCount,
+        lastBookNumber: r.lastBookNumber ?? null,
       }))),
       tap(s => this.subjects.set(s))
     );
@@ -156,6 +171,22 @@ export class BooksService {
 
   getBookForEdit(callNumber: string): Observable<BookEditData> {
     return this.http.get<BookEditData>(`${API}/books/${encodeURIComponent(callNumber)}/edit`);
+  }
+
+  getSiblings(callNumber: string): Observable<{ callNumber: string; prefix: string; bookNumber: string }[]> {
+    return this.http.get<{ callNumber: string; prefix: string; bookNumber: string }[]>(`${API}/books/${encodeURIComponent(callNumber)}/siblings`);
+  }
+
+  addHolding(callNumber: string, dto: { prefix: string; bookNumber: string }): Observable<{ callNumber: string; prefix: string; bookNumber: string }> {
+    return this.http.post<{ callNumber: string; prefix: string; bookNumber: string }>(`${API}/books/${encodeURIComponent(callNumber)}/holdings`, dto);
+  }
+
+  deleteHolding(callNumber: string): Observable<void> {
+    return this.http.delete<void>(`${API}/books/${encodeURIComponent(callNumber)}`);
+  }
+
+  createBook(data: BookCreateDto): Observable<{ callNumber: string; prefix: string; bookNumber: string }> {
+    return this.http.post<{ callNumber: string; prefix: string; bookNumber: string }>(`${API}/books`, data);
   }
 
   updateBook(callNumber: string, data: BookUpdateDto): Observable<void> {

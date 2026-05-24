@@ -1,7 +1,9 @@
 import { Component, input, inject, signal, computed, effect, ElementRef, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { BooksService, BookEditData, BookUpdateDto } from '../../core/books.service';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs/operators';
+import { BooksService, BookEditData, BookUpdateDto, BookCreateDto } from '../../core/books.service';
 import { AuthService } from '../../core/auth.service';
 import { LangService } from '../../core/lang.service';
 import { I18N } from '../../core/i18n.tokens';
@@ -15,16 +17,28 @@ import { I18N } from '../../core/i18n.tokens';
       <div class="book-detail-loading">Loading…</div>
     } @else if (notFound()) {
       <div class="book-detail-loading">Record not found.</div>
-    } @else if (data()) {
+    } @else if (data() || isNew()) {
 
       <div class="edit-strip">
-        <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
-        <span class="edit-strip-call">{{ callNumber() }}</span>
+        @if (fromAdmin() || isNew()) {
+          <nav class="edit-strip-crumb">
+            <a class="edit-strip-crumb-link" routerLink="/admin">Admin</a>
+            <span class="edit-strip-crumb-sep">›</span>
+            <a class="edit-strip-crumb-link" routerLink="/admin/catalog">Catalogue</a>
+            <span class="edit-strip-crumb-sep">›</span>
+            <span class="edit-strip-crumb-current">
+              @if (isNew()) { New Record } @else { {{ callNumber() }}{{ data()?.work?.title ? ' ' + data()!.work.title : '' }} }
+            </span>
+          </nav>
+        } @else {
+          <button class="crumb" routerLink="/">&#x2190; {{ i18n()['nav_home'] }}</button>
+        }
         <div class="edit-actions">
           @if (saved()) {
             <span class="edit-saved-msg">{{ i18n()['edit_saved'] }}</span>
           }
           <button class="edit-btn edit-btn--cancel" (click)="cancel()">{{ i18n()['edit_cancel'] }}</button>
+          <a class="edit-btn edit-btn--new" routerLink="/admin/new">+ New</a>
           <button class="edit-btn edit-btn--save" (click)="save()" [disabled]="saving()">
             {{ saving() ? '…' : i18n()['edit_save'] }}
           </button>
@@ -54,23 +68,20 @@ import { I18N } from '../../core/i18n.tokens';
                 </div>
                 <div class="edit-row">
                   <div class="edit-field">
-                    <label class="edit-field-label">Year</label>
-                    <input class="edit-input edit-input--sm" formControlName="publicationYear" type="number" />
-                  </div>
-                  <div class="edit-field">
                     <label class="edit-field-label">Language</label>
                     <input class="edit-input edit-input--sm" formControlName="language" placeholder="por / eng…" />
                   </div>
-                  <div class="edit-field">
-                    <label class="edit-field-label">Work type</label>
-                    <input class="edit-input edit-input--sm" formControlName="workType" />
-                  </div>
                   <div class="edit-field edit-field--grow">
-                    <label class="edit-field-label">Series</label>
-                    <input class="edit-input" formControlName="series" />
+                    <label class="edit-field-label">Subject</label>
+                    <select class="edit-select" formControlName="subjectId" (change)="onSubjectChange()">
+                      <option value="">— None —</option>
+                      @for (s of svc.subjects(); track s.id) {
+                        <option [value]="s.id">{{ s.key }} ({{ s.prefix }})</option>
+                      }
+                    </select>
                   </div>
                 </div>
-                <div class="edit-field">
+                <div class="edit-field" style="margin-bottom:12px">
                   <label class="edit-field-label">Description</label>
                   <textarea class="edit-textarea" formControlName="description" rows="4"></textarea>
                 </div>
@@ -88,117 +99,64 @@ import { I18N } from '../../core/i18n.tokens';
             }
           </div>
 
-          <!-- Authors -->
-          <div class="edit-section">
-            <button type="button" class="edit-section-header" (click)="sectAuthors.set(!sectAuthors())">
-              <span class="edit-section-chevron">{{ sectAuthors() ? '▼' : '▶' }}</span>
-              Authors
-            </button>
-            @if (sectAuthors()) {
-              <div class="edit-section-body">
-                @for (a of authors(); track a.id) {
-                  <div class="edit-author-row">
-                    <span class="edit-author-name">{{ a.name }}</span>
-                    <span class="edit-author-role">{{ a.role || '' }}</span>
-                    <button class="edit-digital-del" type="button" (click)="removeAuthor(a.id)" title="Remove">&#x2715;</button>
-                  </div>
-                }
-                @if (authors().length === 0) {
-                  <p class="edit-empty">No authors on record.</p>
-                }
-                <div class="edit-new-copy-form">
-                  <form [formGroup]="newAuthorForm" (ngSubmit)="addAuthor()">
-                    <div class="edit-row">
-                      <div class="edit-field edit-field--grow">
-                        <label class="edit-field-label">Name *</label>
-                        <input class="edit-input" formControlName="authorName"
-                               list="author-suggestions" placeholder="Author name…" autocomplete="off" />
-                        <datalist id="author-suggestions">
-                          @for (a of svc.authors(); track a.id) {
-                            <option [value]="a.name"></option>
-                          }
-                        </datalist>
-                      </div>
-                      <div class="edit-field">
-                        <label class="edit-field-label">Role</label>
-                        <input class="edit-input edit-input--sm" formControlName="authorRole" placeholder="author, editor…" />
-                      </div>
-                      <div class="edit-field edit-field--btn">
-                        <label class="edit-field-label">&nbsp;</label>
-                        <button type="submit" class="edit-btn edit-btn--sm" [disabled]="newAuthorForm.invalid">Add</button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            }
-          </div>
-
-          <!-- Publisher & Identifiers -->
-          <div class="edit-section">
-            <button type="button" class="edit-section-header" (click)="sectPublisher.set(!sectPublisher())">
-              <span class="edit-section-chevron">{{ sectPublisher() ? '▼' : '▶' }}</span>
-              {{ i18n()['edit_publisher'] }} &amp; {{ i18n()['edit_identifiers'] }}
-            </button>
-            @if (sectPublisher()) {
-              <div class="edit-section-body">
-                <div class="edit-row">
-                  <div class="edit-field edit-field--grow">
-                    <label class="edit-field-label">Publisher name</label>
-                    <input class="edit-input" formControlName="publisherName" />
-                  </div>
-                  <div class="edit-field edit-field--grow">
-                    <label class="edit-field-label">City</label>
-                    <input class="edit-input" formControlName="publisherPlace" />
-                  </div>
-                </div>
-                <div class="edit-row">
-                  <div class="edit-field">
-                    <label class="edit-field-label">ISBN-10</label>
-                    <input class="edit-input edit-input--sm" formControlName="isbn10" />
-                  </div>
-                  <div class="edit-field">
-                    <label class="edit-field-label">ISBN-13</label>
-                    <input class="edit-input" formControlName="isbn13" />
-                  </div>
-                  <div class="edit-field">
-                    <label class="edit-field-label">LCCN</label>
-                    <input class="edit-input edit-input--sm" formControlName="lccn" />
-                  </div>
-                  <div class="edit-field">
-                    <label class="edit-field-label">OCLC</label>
-                    <input class="edit-input edit-input--sm" formControlName="oclc" />
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-
           <!-- Holding -->
           <div class="edit-section">
-            <button type="button" class="edit-section-header" (click)="sectHolding.set(!sectHolding())">
-              <span class="edit-section-chevron">{{ sectHolding() ? '▼' : '▶' }}</span>
-              {{ i18n()['edit_holding'] }}
-            </button>
+            <div class="edit-section-header edit-section-header--row">
+              <button type="button" class="edit-section-header-trigger" (click)="sectHolding.set(!sectHolding())">
+                <span class="edit-section-chevron">{{ sectHolding() ? '▼' : '▶' }}</span>
+                {{ i18n()['edit_holding'] }}
+              </button>
+              @if (!isNew()) {
+                <div class="edit-holding-menu-wrap">
+                  <button type="button" class="edit-holding-dots" (click)="toggleHoldingMenu()">⋮</button>
+                  @if (holdingMenuOpen()) {
+                    <div class="edit-menu-backdrop" (click)="closeHoldingMenu()"></div>
+                    <div class="edit-section-menu">
+                      @for (s of siblings(); track s.callNumber) {
+                        @if (s.callNumber !== callNumber()) {
+                          <button type="button" class="edit-menu-item"
+                                  (click)="navToSibling(s.callNumber, s.prefix, s.bookNumber)">
+                            {{ s.callNumber }}
+                          </button>
+                        }
+                      }
+                      @if (!addingHolding()) {
+                        <button type="button" class="edit-menu-item" (click)="startAddHolding()">Add new</button>
+                      } @else {
+                        <div class="edit-menu-add-form">
+                          <span class="edit-menu-add-prefix">{{ data()?.holding?.prefix ?? '' }}</span>
+                          <input class="edit-input edit-input--sm" style="width:55px"
+                                 [value]="newHoldingNum()"
+                                 (input)="onNewHoldingNumInput($event)"
+                                 placeholder="0000" inputmode="numeric" maxlength="4" />
+                          <button type="button" class="edit-btn edit-btn--sm" (click)="submitNewHolding()">Add</button>
+                          <button type="button" class="edit-digital-del" (click)="addingHolding.set(false)">&#x2715;</button>
+                        </div>
+                      }
+                      @if (siblings().length > 1) {
+                        <button type="button" class="edit-menu-item edit-menu-item--danger" (click)="deleteHolding()">Delete</button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
             @if (sectHolding()) {
               <div class="edit-section-body">
                 <div class="edit-row">
-                  <div class="edit-field">
-                    <label class="edit-field-label">Prefix</label>
-                    <input class="edit-input edit-input--sm" formControlName="prefix" />
-                  </div>
+                  @if (isNew()) {
+                    <div class="edit-field">
+                      <label class="edit-field-label">Prefix</label>
+                      <input class="edit-input edit-input--sm" formControlName="prefix" readonly
+                             style="background:color-mix(in oklab,var(--paper) 60%,white);color:color-mix(in oklab,var(--ink) 50%,transparent)" />
+                    </div>
+                  }
                   <div class="edit-field">
                     <label class="edit-field-label">Book number</label>
-                    <input class="edit-input edit-input--sm" formControlName="bookNumber" />
-                  </div>
-                  <div class="edit-field edit-field--grow">
-                    <label class="edit-field-label">Subject</label>
-                    <select class="edit-select" formControlName="subjectId">
-                      <option value="">— None —</option>
-                      @for (s of svc.subjects(); track s.id) {
-                        <option [value]="s.id">{{ s.key }} ({{ s.prefix }})</option>
-                      }
-                    </select>
+                    <input class="edit-input edit-input--sm" formControlName="bookNumber"
+                           inputmode="numeric"
+                           (input)="onBookNumberInput($event)"
+                           (blur)="onBookNumberBlur()" />
                   </div>
                 </div>
                 <div class="edit-row">
@@ -274,9 +232,104 @@ import { I18N } from '../../core/i18n.tokens';
             }
           </div>
 
+          <!-- Authors -->
+          <div class="edit-section">
+            <button type="button" class="edit-section-header" (click)="sectAuthors.set(!sectAuthors())">
+              <span class="edit-section-chevron">{{ sectAuthors() ? '▼' : '▶' }}</span>
+              Authors
+            </button>
+            @if (sectAuthors()) {
+              <div class="edit-section-body">
+                @for (a of authors(); track a.id) {
+                  <div class="edit-author-row">
+                    <span class="edit-author-name">{{ a.name }}</span>
+                    <span class="edit-author-role">{{ a.role || '' }}</span>
+                    <button class="edit-digital-del" type="button" (click)="removeAuthor(a.id)" title="Remove">&#x2715;</button>
+                  </div>
+                }
+                @if (authors().length === 0) {
+                  <p class="edit-empty">No authors on record.</p>
+                }
+                <div class="edit-new-copy-form">
+                  <form [formGroup]="newAuthorForm" (ngSubmit)="addAuthor()">
+                    <div class="edit-row">
+                      <div class="edit-field edit-field--grow">
+                        <label class="edit-field-label">Name *</label>
+                        <input class="edit-input" formControlName="authorName"
+                               list="author-suggestions" placeholder="Author name…" autocomplete="off" />
+                        <datalist id="author-suggestions">
+                          @for (a of svc.authors(); track a.id) {
+                            <option [value]="a.name"></option>
+                          }
+                        </datalist>
+                      </div>
+                      <div class="edit-field">
+                        <label class="edit-field-label">Role</label>
+                        <input class="edit-input edit-input--sm" formControlName="authorRole" placeholder="author, editor…" />
+                      </div>
+                      <div class="edit-field edit-field--btn">
+                        <label class="edit-field-label">&nbsp;</label>
+                        <button type="submit" class="edit-btn edit-btn--sm" [disabled]="newAuthorForm.invalid">Add</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Publisher & Identifiers -->
+          <div class="edit-section">
+            <button type="button" class="edit-section-header" (click)="sectPublisher.set(!sectPublisher())">
+              <span class="edit-section-chevron">{{ sectPublisher() ? '▼' : '▶' }}</span>
+              {{ i18n()['edit_publisher'] }} &amp; {{ i18n()['edit_identifiers'] }}
+            </button>
+            @if (sectPublisher()) {
+              <div class="edit-section-body">
+                <div class="edit-row">
+                  <div class="edit-field">
+                    <label class="edit-field-label">Year</label>
+                    <input class="edit-input edit-input--sm" formControlName="publicationYear" type="number" />
+                  </div>
+                  <div class="edit-field">
+                    <label class="edit-field-label">Work type</label>
+                    <input class="edit-input edit-input--sm" formControlName="workType" />
+                  </div>
+                  <div class="edit-field edit-field--grow">
+                    <label class="edit-field-label">Publisher name</label>
+                    <input class="edit-input" formControlName="publisherName" />
+                  </div>
+                  <div class="edit-field edit-field--grow">
+                    <label class="edit-field-label">City</label>
+                    <input class="edit-input" formControlName="publisherPlace" />
+                  </div>
+                </div>
+                <div class="edit-row">
+                  <div class="edit-field">
+                    <label class="edit-field-label">ISBN-10</label>
+                    <input class="edit-input edit-input--sm" formControlName="isbn10" />
+                  </div>
+                  <div class="edit-field">
+                    <label class="edit-field-label">ISBN-13</label>
+                    <input class="edit-input" formControlName="isbn13" />
+                  </div>
+                  <div class="edit-field">
+                    <label class="edit-field-label">LCCN</label>
+                    <input class="edit-input edit-input--sm" formControlName="lccn" />
+                  </div>
+                  <div class="edit-field">
+                    <label class="edit-field-label">OCLC</label>
+                    <input class="edit-input edit-input--sm" formControlName="oclc" />
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
         </form>
 
-        <!-- Digital Copies (outside main form, managed independently) -->
+        <!-- Digital Copies and Enrichment only shown for existing records -->
+        @if (!isNew()) {
         <div class="edit-section">
           <button type="button" class="edit-section-header" (click)="sectDigital.set(!sectDigital())">
             <span class="edit-section-chevron">{{ sectDigital() ? '▼' : '▶' }}</span>
@@ -342,7 +395,7 @@ import { I18N } from '../../core/i18n.tokens';
         </div>
 
         <!-- Enrichment Data -->
-        <div class="edit-section">
+        <div class="edit-section edit-section--wide">
           <button type="button" class="edit-section-header" (click)="sectEnrich.set(!sectEnrich())">
             <span class="edit-section-chevron">{{ sectEnrich() ? '▼' : '▶' }}</span>
             {{ i18n()['edit_enrichment'] }}
@@ -373,6 +426,7 @@ import { I18N } from '../../core/i18n.tokens';
             </div>
           }
         </div>
+        } <!-- end @if (!isNew()) -->
 
       </div>
     }
@@ -385,11 +439,14 @@ export class BookEditComponent {
   private fb = inject(FormBuilder);
   readonly svc = inject(BooksService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   readonly langSvc = inject(LangService);
   readonly authSvc = inject(AuthService);
 
   i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
   callNumber = computed(() => this.prefix() + this.bookNumber());
+  isNew = computed(() => !this.prefix() && !this.bookNumber());
+  fromAdmin = toSignal(this.route.queryParamMap.pipe(map(p => p.get('from') === 'admin')), { initialValue: false });
 
   loading = signal(true);
   saving = signal(false);
@@ -450,6 +507,11 @@ export class BookEditComponent {
   coverPreview = signal<string | null>(null);
   coverUploading = signal(false);
 
+  siblings = signal<{ callNumber: string; prefix: string; bookNumber: string }[]>([]);
+  holdingMenuOpen = signal(false);
+  addingHolding = signal(false);
+  newHoldingNum = signal('');
+
   currentCoverUrl = computed(() => this.coverPreview() || this.form.value.coverUrl || null);
 
   coverFileRef = viewChild<ElementRef>('coverFileInput');
@@ -458,7 +520,7 @@ export class BookEditComponent {
   constructor() {
     effect((onCleanup) => {
       const cn = this.callNumber();
-      if (!cn) return;
+      if (!cn) { this.loading.set(false); return; }
       this.loading.set(true);
       this.notFound.set(false);
       const sub = this.svc.getBookForEdit(cn).subscribe({
@@ -488,11 +550,12 @@ export class BookEditComponent {
             availabilityStatus: d.holding.availabilityStatus ?? '',
             acquisitionDate: d.holding.acquisitionDate ?? '',
             coverUrl: d.holding.coverUrl ?? '',
-            subjectId: d.holding.subjectId ?? '',
+            subjectId: d.work.subjectId ?? '',
             prefix: d.holding.prefix ?? '',
-            bookNumber: d.holding.bookNumber ?? '',
+            bookNumber: (d.holding.bookNumber ?? '').replace(/\D/g, '').padStart(4, '0').replace(/^0+$/, ''),
           });
           this.loading.set(false);
+          this.svc.getSiblings(cn).subscribe(s => this.siblings.set(s));
         },
         error: () => {
           this.notFound.set(true);
@@ -506,6 +569,33 @@ export class BookEditComponent {
   save() {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
+
+    if (this.isNew()) {
+      const dto: BookCreateDto = {
+        title: v.title!, subtitle: v.subtitle || null, description: v.description || null,
+        workType: v.workType || null, series: v.series || null,
+        publicationYear: v.publicationYear || null, language: v.language || null,
+        isbn10: v.isbn10 || null, isbn13: v.isbn13 || null,
+        lccn: v.lccn || null, oclc: v.oclc || null,
+        pageCount: v.pageCount || null, physicalDescription: v.physicalDescription || null,
+        publisherName: v.publisherName || null, publisherPlace: v.publisherPlace || null,
+        prefix: v.prefix || '', bookNumber: v.bookNumber || '',
+        location: v.location || null, barcode: v.barcode || null,
+        copyNotes: v.copyNotes || null, availabilityStatus: v.availabilityStatus || null,
+        acquisitionDate: v.acquisitionDate || null, coverUrl: v.coverUrl || null,
+        subjectId: v.subjectId || null,
+      };
+      this.saving.set(true);
+      this.svc.createBook(dto).subscribe({
+        next: (r) => {
+          this.saving.set(false);
+          this.router.navigate(['/', r.prefix, r.bookNumber, 'edit'], { queryParams: { from: 'admin' } });
+        },
+        error: () => this.saving.set(false),
+      });
+      return;
+    }
+
     const dto: BookUpdateDto = {
       title: v.title!,
       subtitle: v.subtitle || null,
@@ -549,6 +639,16 @@ export class BookEditComponent {
       },
       error: () => this.saving.set(false),
     });
+  }
+
+  onSubjectChange() {
+    if (!this.isNew()) return;
+    const subjectId = this.form.value.subjectId;
+    const subject = this.svc.subjects().find(s => s.id === subjectId);
+    const nextNum = subject?.lastBookNumber != null
+      ? String(subject.lastBookNumber + 1).padStart(4, '0')
+      : '';
+    this.form.patchValue({ prefix: subject?.prefix ?? '', bookNumber: nextNum }, { emitEvent: false });
   }
 
   cancel() {
@@ -656,6 +756,66 @@ export class BookEditComponent {
     this.svc.uploadFile(this.callNumber(), file).subscribe({
       next: () => this.svc.getBookForEdit(this.callNumber()).subscribe(d => this.digitalCopies.set(d.digitalCopies)),
     });
+  }
+
+  toggleHoldingMenu() { this.holdingMenuOpen.update(v => !v); this.addingHolding.set(false); }
+  closeHoldingMenu() { this.holdingMenuOpen.set(false); this.addingHolding.set(false); }
+
+  navToSibling(callNumber: string, prefix: string, bookNumber: string) {
+    this.closeHoldingMenu();
+    const p = prefix || callNumber;
+    const n = prefix ? bookNumber : '_';
+    this.router.navigate(['/', p, n, 'edit'], { queryParams: { from: 'admin' } });
+  }
+
+  startAddHolding() { this.addingHolding.set(true); }
+
+  onNewHoldingNumInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const digits = input.value.replace(/\D/g, '').slice(0, 4);
+    input.value = digits;
+    this.newHoldingNum.set(digits);
+  }
+
+  submitNewHolding() {
+    const digits = this.newHoldingNum().replace(/\D/g, '');
+    if (!digits) return;
+    const bookNumber = digits.padStart(4, '0');
+    const prefix = this.data()?.holding.prefix ?? '';
+    this.svc.addHolding(this.callNumber(), { prefix, bookNumber }).subscribe({
+      next: (r) => {
+        this.closeHoldingMenu();
+        this.newHoldingNum.set('');
+        this.router.navigate(['/', r.prefix || r.callNumber, r.prefix ? r.bookNumber : '_', 'edit'],
+          { queryParams: { from: 'admin' } });
+      },
+    });
+  }
+
+  deleteHolding() {
+    if (!confirm(`Delete holding ${this.callNumber()}? This cannot be undone.`)) return;
+    this.closeHoldingMenu();
+    const next = this.siblings().find(s => s.callNumber !== this.callNumber());
+    this.svc.deleteHolding(this.callNumber()).subscribe({
+      next: () => {
+        if (next) this.router.navigate(['/', next.prefix || next.callNumber, next.prefix ? next.bookNumber : '_', 'edit'],
+          { queryParams: { from: 'admin' } });
+        else this.router.navigate(['/admin/catalog']);
+      },
+    });
+  }
+
+  onBookNumberInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const digits = input.value.replace(/\D/g, '');
+    this.form.patchValue({ bookNumber: digits }, { emitEvent: false });
+    input.value = digits;
+  }
+
+  onBookNumberBlur() {
+    const raw = this.form.value.bookNumber ?? '';
+    const digits = raw.replace(/\D/g, '');
+    if (digits) this.form.patchValue({ bookNumber: digits.padStart(4, '0') }, { emitEvent: false });
   }
 
   enrichKeys = computed(() => {

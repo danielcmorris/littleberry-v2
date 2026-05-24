@@ -7,17 +7,26 @@ interface AdminStats {
   subjects: number;
   authors: number;
   files: number;
+  catalog: number;
   requests: number;
   shipments: number;
 }
 
 const TILES = [
   {
+    key: 'catalog' as keyof AdminStats,
+    label: 'Catalogue',
+    description: 'Browse, search and edit all holdings',
+    path: '/admin/catalog',
+    accent: '#1a4480',
+    letter: 'C',
+  },
+  {
     key: 'subjects' as keyof AdminStats,
     label: 'Subjects',
     description: 'Subject categories and prefixes',
     path: '/subjects',
-    accent: '#1a4480',
+    accent: '#234876',
     letter: 'S',
   },
   {
@@ -25,7 +34,7 @@ const TILES = [
     label: 'Authors',
     description: 'Author records across all works',
     path: '/authors',
-    accent: '#234876',
+    accent: '#2a5187',
     letter: 'A',
   },
   {
@@ -33,7 +42,7 @@ const TILES = [
     label: 'Files',
     description: 'Digital copies and uploaded documents',
     path: '/admin/files',
-    accent: '#2a5187',
+    accent: '#3a5c8c',
     letter: 'F',
   },
   {
@@ -41,7 +50,7 @@ const TILES = [
     label: 'Requests',
     description: 'Patron book requests',
     path: '/admin/requests',
-    accent: '#3a5c8c',
+    accent: '#1e3565',
     letter: 'R',
     comingSoon: true,
   },
@@ -50,7 +59,7 @@ const TILES = [
     label: 'Shipments',
     description: 'Acquisition shipments and orders',
     path: '/admin/shipments',
-    accent: '#1e3565',
+    accent: '#162f58',
     letter: 'SH',
     comingSoon: true,
   },

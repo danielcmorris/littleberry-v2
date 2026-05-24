@@ -5,4 +5,5 @@ export interface Subject {
   prefix: string;
   tile: string;
   bookCount: number;
+  lastBookNumber: number | null;
 }

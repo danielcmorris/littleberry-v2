@@ -10,11 +10,14 @@ import { CoverComponent } from '../cover/cover.component';
   standalone: true,
   imports: [CoverComponent, RouterLink],
   template: `
-    <button [class]="'bookcard bookcard--' + size()" [routerLink]="bookRoute()">
+    <button [class]="'bookcard bookcard--' + size()" [routerLink]="bookRoute()" [queryParams]="queryParams()">
       <div class="bookcard-cover">
         <app-cover [book]="book()" />
         @if (isNew()) {
           <span class="bookcard-newbadge">{{ i18n()['new_label'] }}</span>
+        }
+        @if (book().digital_copies.length > 0) {
+          <span class="bookcard-digital" title="Digital copy available">&#x2B07;</span>
         }
       </div>
       <div class="bookcard-meta">
@@ -31,6 +34,7 @@ import { CoverComponent } from '../cover/cover.component';
 export class BookCardComponent {
   book = input.required<Book>();
   size = input<string>('md');
+  queryParams = input<Record<string, string> | null>(null);
 
   private langSvc = inject(LangService);
   i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);

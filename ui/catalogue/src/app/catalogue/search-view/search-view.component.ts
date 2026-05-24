@@ -35,7 +35,7 @@ import { Book } from '../../core/book.model';
       }
       <div class="catalog-grid">
         @for (b of results(); track b.id) {
-          <app-book-card [book]="b" />
+          <app-book-card [book]="b" [queryParams]="{ from: 'search', ctx: q() ?? '' }" />
         }
       </div>
     </section>
