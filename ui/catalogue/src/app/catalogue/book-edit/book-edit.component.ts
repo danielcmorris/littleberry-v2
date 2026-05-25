@@ -2,7 +2,8 @@ import { Component, input, inject, signal, computed, effect, ElementRef, viewChi
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs/operators';
+import { map, switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { BooksService, BookEditData, BookUpdateDto, BookCreateDto } from '../../core/books.service';
 import { AuthService } from '../../core/auth.service';
 import { LangService } from '../../core/lang.service';
@@ -453,6 +454,7 @@ import { I18N } from '../../core/i18n.tokens';
 export class BookEditComponent {
   prefix = input<string>('');
   bookNumber = input<string>('');
+  workSlug = input<string>('');
 
   private fb = inject(FormBuilder);
   readonly svc = inject(BooksService);
@@ -463,7 +465,7 @@ export class BookEditComponent {
 
   i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
   callNumber = computed(() => this.prefix() + this.bookNumber());
-  isNew = computed(() => !this.prefix() && !this.bookNumber());
+  isNew = computed(() => !this.prefix() && !this.bookNumber() && !this.workSlug());
   fromAdmin = toSignal(this.route.queryParamMap.pipe(map(p => p.get('from') === 'admin')), { initialValue: false });
 
   loading = signal(true);
@@ -539,11 +541,20 @@ export class BookEditComponent {
 
   constructor() {
     effect((onCleanup) => {
+      const slug = this.workSlug();
       const cn = this.callNumber();
-      if (!cn) { this.loading.set(false); return; }
+      if (!slug && !cn) { this.loading.set(false); return; }
       this.loading.set(true);
       this.notFound.set(false);
-      const sub = this.svc.getBookForEdit(cn).subscribe({
+
+      const seqId = slug ? parseInt(slug.split('-')[0], 10) : NaN;
+      const resolve$ = !isNaN(seqId)
+        ? this.svc.getWorkBySeqId(seqId).pipe(map(b => b.call_number))
+        : of(cn);
+
+      const sub = resolve$.pipe(
+        switchMap(resolvedCn => this.svc.getBookForEdit(resolvedCn))
+      ).subscribe({
         next: d => {
           this.data.set(d);
           this.digitalCopies.set(d.digitalCopies);

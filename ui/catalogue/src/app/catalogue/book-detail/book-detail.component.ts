@@ -36,7 +36,7 @@ import { CoverComponent } from '../cover/cover.component';
             <span class="breadcrumb-current">{{ book()!.call_number }} — {{ book()!.title }}</span>
           </nav>
           @if (authSvc.user()) {
-            <a class="detail-edit-link" [routerLink]="['/', prefix(), bookNumber(), 'edit']" [queryParams]="{ from: from() || null, ctx: ctx() || null }">{{ i18n()['edit_title'] }}</a>
+            <a class="detail-edit-link" [routerLink]="editRoute()" [queryParams]="{ from: from() || null, ctx: ctx() || null }">{{ i18n()['edit_title'] }}</a>
           }
         </div>
         <div class="modal-grid">
@@ -167,6 +167,12 @@ export class BookDetailComponent {
   notFound = signal(false);
 
   i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
+
+  editRoute = computed(() => {
+    const slug = this.workSlug();
+    if (slug) return ['/', 'book', slug, 'edit'];
+    return ['/', this.prefix(), this.bookNumber(), 'edit'];
+  });
 
   subjectTile = computed(() => {
     const b = this.book();
