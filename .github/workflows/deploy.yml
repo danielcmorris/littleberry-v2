@@ -47,4 +47,5 @@ jobs:
             --region=$REGION \
             --project=$PROJECT_ID \
             --update-secrets=/run/secrets/appsettings.json=littleberry-appsettings:latest \
+            --add-cloudsql-instances=morrisdev-203721:us-central1:morrisdev \
             --quiet
