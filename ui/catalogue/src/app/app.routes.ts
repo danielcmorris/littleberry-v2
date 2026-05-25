@@ -26,7 +26,8 @@ export const routes: Routes = [
   { path: 'search', component: SearchViewComponent },
   { path: 'author/:author', component: AuthorViewComponent },
   { path: 'subject/:subject', component: SubjectViewComponent },
+  { path: 'book/:workSlug/edit', component: BookEditComponent, canActivate: [authGuard] },
+  { path: 'book/:workSlug', component: BookDetailComponent },
   { path: ':prefix/:bookNumber/edit', component: BookEditComponent, canActivate: [authGuard] },
   { path: ':prefix/:bookNumber', component: BookDetailComponent },
-  { path: 'book/:workSlug', component: BookDetailComponent },
 ];
