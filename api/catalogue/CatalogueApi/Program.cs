@@ -689,6 +689,67 @@ app.MapPut("/api/books/{callNumber}", async (IDbConnection db, string callNumber
     }
 });
 
+// Update work by seq_id
+app.MapPut("/api/works/{seqId:long}", async (IDbConnection db, long seqId, BookUpdateDto dto) =>
+{
+    const string lookupSql = @"
+        SELECT h.id AS holding_id, h.edition_id, e.work_id, e.publisher_id
+        FROM works w
+        JOIN editions e ON e.work_id = w.id
+        JOIN holdings h ON h.edition_id = e.id
+        WHERE w.seq_id = @seqId
+        LIMIT 1";
+    var ids = await db.QueryFirstOrDefaultAsync(lookupSql, new { seqId });
+    if (ids == null) return Results.NotFound();
+
+    if (db.State != ConnectionState.Open) db.Open();
+    using var txn = db.BeginTransaction();
+    try
+    {
+        Guid? subjectId = Guid.TryParse(dto.SubjectId, out var sid) ? sid : (Guid?)null;
+        await db.ExecuteAsync(
+            @"UPDATE works SET title=@Title, subtitle=@Subtitle, description=@Description, work_type=@WorkType, series=@Series, subject_id=@subjectId WHERE id=@workId",
+            new { dto.Title, dto.Subtitle, dto.Description, dto.WorkType, dto.Series, subjectId, workId = (Guid)ids.work_id },
+            txn);
+
+        await db.ExecuteAsync(
+            @"UPDATE editions SET publication_year=@PublicationYear, language=@Language, isbn_10=@Isbn10, isbn_13=@Isbn13, lccn=@Lccn, oclc=@Oclc, page_count=@PageCount, physical_description=@PhysicalDescription WHERE id=@editionId",
+            new { dto.PublicationYear, dto.Language, dto.Isbn10, dto.Isbn13, dto.Lccn, dto.Oclc, dto.PageCount, dto.PhysicalDescription, editionId = (Guid)ids.edition_id },
+            txn);
+
+        if (ids.publisher_id != null)
+        {
+            await db.ExecuteAsync(
+                @"UPDATE publishers SET name=@PublisherName, place=@PublisherPlace WHERE id=@publisherId",
+                new { dto.PublisherName, dto.PublisherPlace, publisherId = (Guid)ids.publisher_id },
+                txn);
+        }
+
+        string? acqDate = string.IsNullOrWhiteSpace(dto.AcquisitionDate) ? null : dto.AcquisitionDate;
+        await db.ExecuteAsync(
+            @"UPDATE holdings SET
+                location=@Location, barcode=@Barcode, copy_notes=@CopyNotes,
+                availability_status=@AvailabilityStatus,
+                acquisition_date=CASE WHEN @acqDate IS NULL THEN NULL ELSE @acqDate::date END,
+                cover_url=@CoverUrl,
+                call_number=COALESCE(NULLIF(@CallNumber,''), call_number),
+                prefix=COALESCE(NULLIF(@Prefix,''), prefix),
+                book_number=COALESCE(NULLIF(@BookNumber,''), book_number)
+              WHERE id=@holdingId",
+            new { dto.Location, dto.Barcode, dto.CopyNotes, dto.AvailabilityStatus, acqDate, dto.CoverUrl,
+                  dto.CallNumber, dto.Prefix, dto.BookNumber, holdingId = (Guid)ids.holding_id },
+            txn);
+
+        txn.Commit();
+        return Results.NoContent();
+    }
+    catch
+    {
+        txn.Rollback();
+        throw;
+    }
+});
+
 // Sibling holdings (same edition)
 app.MapGet("/api/books/{callNumber}/siblings", async (IDbConnection db, string callNumber) =>
 {

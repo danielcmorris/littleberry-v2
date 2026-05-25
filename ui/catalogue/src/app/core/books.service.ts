@@ -199,6 +199,10 @@ export class BooksService {
     return this.http.put<void>(`${API}/books/${encodeURIComponent(callNumber)}`, data);
   }
 
+  updateWork(seqId: number, data: BookUpdateDto): Observable<void> {
+    return this.http.put<void>(`${API}/works/${seqId}`, data);
+  }
+
   addDigitalCopy(callNumber: string, copy: DigitalCopyDto): Observable<void> {
     return this.http.post<void>(`${API}/books/${encodeURIComponent(callNumber)}/digital`, copy);
   }

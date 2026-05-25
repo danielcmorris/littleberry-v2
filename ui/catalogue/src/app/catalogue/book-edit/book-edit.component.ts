@@ -465,6 +465,12 @@ export class BookEditComponent {
 
   i18n = computed(() => I18N[this.langSvc.lang()] ?? I18N['en']);
   callNumber = computed(() => this.prefix() + this.bookNumber());
+  resolvedSeqId = computed(() => {
+    const slug = this.workSlug();
+    if (!slug) return null;
+    const id = parseInt(slug.split('-')[0], 10);
+    return isNaN(id) ? null : id;
+  });
   isNew = computed(() => !this.prefix() && !this.bookNumber() && !this.workSlug());
   fromAdmin = toSignal(this.route.queryParamMap.pipe(map(p => p.get('from') === 'admin')), { initialValue: false });
 
@@ -654,10 +660,14 @@ export class BookEditComponent {
       prefix: v.prefix || null,
       bookNumber: v.bookNumber || null,
     };
+    const seqId = this.resolvedSeqId();
     const oldCallNumber = this.callNumber();
     const newCallNumber = (v.prefix || this.prefix()) + (v.bookNumber || this.bookNumber());
     this.saving.set(true);
-    this.svc.updateBook(oldCallNumber, dto).subscribe({
+    const save$ = seqId
+      ? this.svc.updateWork(seqId, dto)
+      : this.svc.updateBook(oldCallNumber, dto);
+    save$.subscribe({
       next: () => {
         this.saving.set(false);
         this.saved.set(true);
