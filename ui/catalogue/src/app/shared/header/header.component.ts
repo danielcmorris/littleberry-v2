@@ -22,6 +22,9 @@ import { I18N } from '../../core/i18n.tokens';
           <button class="nav-item" routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{exact:true}">{{ i18n()['nav_home'] }}</button>
           <button class="nav-item" routerLink="/authors" routerLinkActive="is-active">{{ i18n()['nav_authors'] }}</button>
           <button class="nav-item" routerLink="/subjects" routerLinkActive="is-active">{{ i18n()['nav_subjects'] }}</button>
+          @if (authSvc.isStaffOrAdmin()) {
+            <button class="nav-item nav-item--admin" routerLink="/admin" routerLinkActive="is-active">{{ i18n()['nav_admin'] }}</button>
+          }
         </nav>
         <div class="site-tools">
           <div class="search-wrap">

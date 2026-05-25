@@ -1,19 +1,33 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, catchError, map, of, tap } from 'rxjs';
+import { environment } from '../../environments/environment';
+
+export type UserRole = 'public' | 'member' | 'staff' | 'admin';
 
 export interface AuthUser {
   sub: string;
   email: string;
   name: string;
   picture: string | null;
+  role: UserRole;
 }
 
 const CLIENT_ID = '682935653385-l3t4gfu926e275h7plc8vj36968ve0r6.apps.googleusercontent.com';
 const RETURN_KEY = 'lb_return_url';
 const USER_KEY = 'lb_user';
+const API = environment.apiUrl;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private http = inject(HttpClient);
+
   user = signal<AuthUser | null>(this.loadUser());
+
+  isStaffOrAdmin = computed(() => {
+    const r = this.user()?.role;
+    return r === 'staff' || r === 'admin';
+  });
 
   login(returnUrl = '/') {
     if (returnUrl !== '/') localStorage.setItem(RETURN_KEY, returnUrl);
@@ -42,6 +56,22 @@ export class AuthService {
     return returnUrl;
   }
 
+  fetchRole(): Observable<void> {
+    const u = this.user();
+    if (!u) return of(undefined);
+    return this.http.post<{ role: UserRole }>(`${API}/auth/me`, {
+      sub: u.sub, email: u.email, name: u.name, picture: u.picture,
+    }).pipe(
+      tap(r => {
+        const updated: AuthUser = { ...u, role: r.role };
+        this.user.set(updated);
+        localStorage.setItem(USER_KEY, JSON.stringify(updated));
+      }),
+      map(() => undefined),
+      catchError(() => of(undefined)),
+    );
+  }
+
   logout() {
     this.user.set(null);
     localStorage.removeItem(USER_KEY);
@@ -66,6 +96,7 @@ export class AuthService {
       email: payload.email,
       name: payload.name,
       picture: payload.picture ?? null,
+      role: 'public',
     };
   }
 }

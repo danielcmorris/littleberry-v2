@@ -14,7 +14,10 @@ export class CallbackComponent implements OnInit {
   ngOnInit() {
     try {
       const returnUrl = this.auth.handleCallback(window.location.hash);
-      this.router.navigateByUrl(returnUrl, { replaceUrl: true });
+      this.auth.fetchRole().subscribe({
+        next: () => this.router.navigateByUrl(returnUrl, { replaceUrl: true }),
+        error: () => this.router.navigateByUrl(returnUrl, { replaceUrl: true }),
+      });
     } catch {
       this.router.navigate(['/'], { replaceUrl: true });
     }

@@ -2,7 +2,7 @@ export const I18N: Record<string, Record<string, string>> = {
   en: {
     site: 'The J.A. Freitas Library',
     tagline: 'Founded in 1964 — over 12,000 works documenting the Portuguese experience',
-    nav_home: 'Library', nav_authors: 'Authors', nav_subjects: 'Subjects', nav_search: 'Search',
+    nav_home: 'Library', nav_authors: 'Authors', nav_subjects: 'Subjects', nav_search: 'Search', nav_admin: 'Admin',
     new_arrivals: 'Recent additions',
     new_arrivals_sub: 'Catalogued this month',
     hero_kicker: 'Featured this week',
@@ -52,7 +52,7 @@ export const I18N: Record<string, Record<string, string>> = {
   pt: {
     site: 'Biblioteca J.A. Freitas',
     tagline: 'Fundada em 1964 — mais de 12.000 obras a documentar a experiência portuguesa',
-    nav_home: 'Acervo', nav_authors: 'Autores', nav_subjects: 'Assuntos', nav_search: 'Pesquisar',
+    nav_home: 'Acervo', nav_authors: 'Autores', nav_subjects: 'Assuntos', nav_search: 'Pesquisar', nav_admin: 'Admin',
     new_arrivals: 'Aquisições recentes',
     new_arrivals_sub: 'Catalogados este mês',
     hero_kicker: 'Em destaque',

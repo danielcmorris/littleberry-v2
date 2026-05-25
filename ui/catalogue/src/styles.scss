@@ -102,6 +102,12 @@ em { font-style: italic; }
   color: var(--accent);
   background: color-mix(in oklab, var(--accent) 8%, transparent);
 }
+.nav-item--admin {
+  color: color-mix(in oklab, var(--gold) 80%, var(--ink));
+  margin-left: 4px;
+}
+.nav-item--admin:hover { color: var(--gold); background: color-mix(in oklab, var(--gold) 8%, transparent); }
+.nav-item--admin.is-active { color: var(--gold); background: color-mix(in oklab, var(--gold) 10%, transparent); }
 .site-tools {
   display: flex; align-items: center; gap: 12px;
   margin-left: auto;
@@ -1526,6 +1532,23 @@ em { font-style: italic; }
 }
 .admin-header {
   margin-bottom: 40px;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+.admin-header-action {
+  margin-left: auto;
+  padding: 8px 18px;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+  &:hover { background: var(--deep); }
 }
 .admin-header-kicker {
   font-family: var(--mono);
@@ -1815,4 +1838,55 @@ em { font-style: italic; }
 
 .asubj-dialog-actions {
   display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;
+}
+
+/* ── Admin Users ── */
+.admin-users-table-wrap {
+  overflow-x: auto;
+}
+.admin-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink) 50%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
+    padding: 8px 12px;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in oklab, var(--ink) 6%, transparent);
+    vertical-align: middle;
+  }
+}
+.admin-users-row--admin td { background: color-mix(in oklab, var(--gold) 5%, transparent); }
+.admin-users-email { font-family: var(--mono); font-size: 12px; }
+.admin-users-date { color: color-mix(in oklab, var(--ink) 55%, transparent); font-size: 12px; }
+.admin-users-role-select {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in oklab, var(--ink) 15%, transparent);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  &:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+}
+.admin-users-empty {
+  padding: 48px 0;
+  text-align: center;
+  color: color-mix(in oklab, var(--ink) 40%, transparent);
+}
+.admin-users-error {
+  font-size: 12px;
+  color: #c0392b;
+  background: color-mix(in oklab, #c0392b 8%, transparent);
+  border-radius: 4px;
+  padding: 6px 10px;
 }

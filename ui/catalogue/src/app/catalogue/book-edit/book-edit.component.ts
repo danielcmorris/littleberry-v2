@@ -103,6 +103,12 @@ import { I18N } from '../../core/i18n.tokens';
                   <textarea class="edit-textarea" formControlName="description" rows="4"></textarea>
                 </div>
                 <div class="edit-row">
+                  <div class="edit-field edit-field--grow">
+                    <label class="edit-field-label">Series</label>
+                    <input class="edit-input" formControlName="series" placeholder="Series name…" />
+                  </div>
+                </div>
+                <div class="edit-row">
                   <div class="edit-field">
                     <label class="edit-field-label">Pages</label>
                     <input class="edit-input edit-input--sm" formControlName="pageCount" type="number" />
@@ -660,12 +666,12 @@ export class BookEditComponent {
       prefix: v.prefix || null,
       bookNumber: v.bookNumber || null,
     };
-    const seqId = this.resolvedSeqId();
+    const workId = this.data()?.work.id;
     const oldCallNumber = this.callNumber();
     const newCallNumber = (v.prefix || this.prefix()) + (v.bookNumber || this.bookNumber());
     this.saving.set(true);
-    const save$ = seqId
-      ? this.svc.updateWork(seqId, dto)
+    const save$ = workId
+      ? this.svc.updateWorkByUuid(workId, dto)
       : this.svc.updateBook(oldCallNumber, dto);
     save$.subscribe({
       next: () => {

@@ -9,6 +9,7 @@ interface AdminStats {
   authors: number;
   files: number;
   catalog: number;
+  users: number;
   requests: number;
   shipments: number;
 }
@@ -45,6 +46,14 @@ const TILES = [
     path: '/admin/files',
     accent: '#3a5c8c',
     letter: 'F',
+  },
+  {
+    key: 'users' as keyof AdminStats,
+    label: 'Users',
+    description: 'Manage user accounts and permissions',
+    path: '/admin/users',
+    accent: '#1e3a5f',
+    letter: 'U',
   },
   {
     key: 'requests' as keyof AdminStats,

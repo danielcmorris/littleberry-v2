@@ -30,12 +30,13 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // Admin stats
 app.MapGet("/api/admin/stats", async (IDbConnection db) =>
 {
-    var subjects  = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM subjects");
+    var subjects  = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM subjects WHERE status IS DISTINCT FROM 'deleted'");
     var authors   = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM authors");
     var files     = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM digital_copies")
                   + await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM media");
     var catalog   = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM holdings");
-    return Results.Ok(new { subjects, authors, files, catalog, requests = 0, shipments = 0 });
+    var users     = await db.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM users");
+    return Results.Ok(new { subjects, authors, files, catalog, users, requests = 0, shipments = 0 });
 });
 
 app.MapGet("/api/admin/catalog", async (IDbConnection db,
@@ -176,6 +177,7 @@ app.MapGet("/api/subjects", async (IDbConnection db) =>
         LEFT JOIN works w ON w.subject_id = s.id
         LEFT JOIN editions e ON e.work_id = w.id
         LEFT JOIN holdings h ON h.edition_id = e.id
+        WHERE s.status IS DISTINCT FROM 'deleted'
         GROUP BY s.id, s.term, s.prefix, s.last_book_number
         ORDER BY s.term";
     var rows = await db.QueryAsync(sql);
@@ -215,10 +217,8 @@ app.MapPut("/api/subjects/{id:guid}", async (IDbConnection db, Guid id, SubjectD
 // Delete subject (only if no works reference it)
 app.MapDelete("/api/subjects/{id:guid}", async (IDbConnection db, Guid id) =>
 {
-    var worksCount = await db.ExecuteScalarAsync<int>(
-        "SELECT COUNT(*) FROM works WHERE subject_id = @id", new { id });
-    if (worksCount > 0) return Results.BadRequest("Subject has associated works and cannot be deleted.");
-    var affected = await db.ExecuteAsync("DELETE FROM subjects WHERE id = @id", new { id });
+    var affected = await db.ExecuteAsync(
+        "UPDATE subjects SET status = 'deleted' WHERE id = @id AND status IS DISTINCT FROM 'deleted'", new { id });
     return affected > 0 ? Results.NoContent() : Results.NotFound();
 });
 
@@ -646,21 +646,45 @@ app.MapPut("/api/books/{callNumber}", async (IDbConnection db, string callNumber
     {
         Guid? subjectId = Guid.TryParse(dto.SubjectId, out var sid) ? sid : (Guid?)null;
         await db.ExecuteAsync(
-            @"UPDATE works SET title=@Title, subtitle=@Subtitle, description=@Description, work_type=@WorkType, series=@Series, subject_id=@subjectId WHERE id=@workId",
-            new { dto.Title, dto.Subtitle, dto.Description, dto.WorkType, dto.Series, subjectId, workId = (Guid)ids.work_id },
+            @"UPDATE works SET title=@Title, subtitle=@Subtitle, description=@Description,
+                               work_type=@WorkType, series=@Series, language=@Language,
+                               subject_id=@subjectId
+              WHERE id=@workId",
+            new { dto.Title, dto.Subtitle, dto.Description, dto.WorkType, dto.Series, dto.Language, subjectId, workId = (Guid)ids.work_id },
             txn);
 
         await db.ExecuteAsync(
-            @"UPDATE editions SET publication_year=@PublicationYear, language=@Language, isbn_10=@Isbn10, isbn_13=@Isbn13, lccn=@Lccn, oclc=@Oclc, page_count=@PageCount, physical_description=@PhysicalDescription WHERE id=@editionId",
+            @"UPDATE editions SET publication_year=@PublicationYear, language=@Language,
+                                  isbn_10=@Isbn10, isbn_13=@Isbn13, lccn=@Lccn, oclc=@Oclc,
+                                  page_count=@PageCount, physical_description=@PhysicalDescription
+              WHERE id=@editionId",
             new { dto.PublicationYear, dto.Language, dto.Isbn10, dto.Isbn13, dto.Lccn, dto.Oclc, dto.PageCount, dto.PhysicalDescription, editionId = (Guid)ids.edition_id },
             txn);
 
-        if (ids.publisher_id != null)
+        if (!string.IsNullOrWhiteSpace(dto.PublisherName))
+        {
+            if (ids.publisher_id != null)
+            {
+                await db.ExecuteAsync(
+                    "UPDATE publishers SET name=@PublisherName, place=@PublisherPlace WHERE id=@publisherId",
+                    new { dto.PublisherName, dto.PublisherPlace, publisherId = (Guid)ids.publisher_id }, txn);
+            }
+            else
+            {
+                var newPublisherId = Guid.NewGuid();
+                await db.ExecuteAsync(
+                    "INSERT INTO publishers (id, name, place) VALUES (@newPublisherId, @PublisherName, @PublisherPlace)",
+                    new { newPublisherId, dto.PublisherName, dto.PublisherPlace }, txn);
+                await db.ExecuteAsync(
+                    "UPDATE editions SET publisher_id=@newPublisherId WHERE id=@editionId",
+                    new { newPublisherId, editionId = (Guid)ids.edition_id }, txn);
+            }
+        }
+        else if (ids.publisher_id != null)
         {
             await db.ExecuteAsync(
-                @"UPDATE publishers SET name=@PublisherName, place=@PublisherPlace WHERE id=@publisherId",
-                new { dto.PublisherName, dto.PublisherPlace, publisherId = (Guid)ids.publisher_id },
-                txn);
+                "UPDATE editions SET publisher_id=NULL WHERE id=@editionId",
+                new { editionId = (Guid)ids.edition_id }, txn);
         }
 
         string? acqDate = string.IsNullOrWhiteSpace(dto.AcquisitionDate) ? null : dto.AcquisitionDate;
@@ -708,21 +732,131 @@ app.MapPut("/api/works/{seqId:long}", async (IDbConnection db, long seqId, BookU
     {
         Guid? subjectId = Guid.TryParse(dto.SubjectId, out var sid) ? sid : (Guid?)null;
         await db.ExecuteAsync(
-            @"UPDATE works SET title=@Title, subtitle=@Subtitle, description=@Description, work_type=@WorkType, series=@Series, subject_id=@subjectId WHERE id=@workId",
-            new { dto.Title, dto.Subtitle, dto.Description, dto.WorkType, dto.Series, subjectId, workId = (Guid)ids.work_id },
+            @"UPDATE works SET title=@Title, subtitle=@Subtitle, description=@Description,
+                               work_type=@WorkType, series=@Series, language=@Language,
+                               subject_id=@subjectId
+              WHERE id=@workId",
+            new { dto.Title, dto.Subtitle, dto.Description, dto.WorkType, dto.Series, dto.Language, subjectId, workId = (Guid)ids.work_id },
             txn);
 
         await db.ExecuteAsync(
-            @"UPDATE editions SET publication_year=@PublicationYear, language=@Language, isbn_10=@Isbn10, isbn_13=@Isbn13, lccn=@Lccn, oclc=@Oclc, page_count=@PageCount, physical_description=@PhysicalDescription WHERE id=@editionId",
+            @"UPDATE editions SET publication_year=@PublicationYear, language=@Language,
+                                  isbn_10=@Isbn10, isbn_13=@Isbn13, lccn=@Lccn, oclc=@Oclc,
+                                  page_count=@PageCount, physical_description=@PhysicalDescription
+              WHERE id=@editionId",
             new { dto.PublicationYear, dto.Language, dto.Isbn10, dto.Isbn13, dto.Lccn, dto.Oclc, dto.PageCount, dto.PhysicalDescription, editionId = (Guid)ids.edition_id },
             txn);
 
-        if (ids.publisher_id != null)
+        if (!string.IsNullOrWhiteSpace(dto.PublisherName))
+        {
+            if (ids.publisher_id != null)
+            {
+                await db.ExecuteAsync(
+                    "UPDATE publishers SET name=@PublisherName, place=@PublisherPlace WHERE id=@publisherId",
+                    new { dto.PublisherName, dto.PublisherPlace, publisherId = (Guid)ids.publisher_id }, txn);
+            }
+            else
+            {
+                var newPublisherId = Guid.NewGuid();
+                await db.ExecuteAsync(
+                    "INSERT INTO publishers (id, name, place) VALUES (@newPublisherId, @PublisherName, @PublisherPlace)",
+                    new { newPublisherId, dto.PublisherName, dto.PublisherPlace }, txn);
+                await db.ExecuteAsync(
+                    "UPDATE editions SET publisher_id=@newPublisherId WHERE id=@editionId",
+                    new { newPublisherId, editionId = (Guid)ids.edition_id }, txn);
+            }
+        }
+        else if (ids.publisher_id != null)
         {
             await db.ExecuteAsync(
-                @"UPDATE publishers SET name=@PublisherName, place=@PublisherPlace WHERE id=@publisherId",
-                new { dto.PublisherName, dto.PublisherPlace, publisherId = (Guid)ids.publisher_id },
-                txn);
+                "UPDATE editions SET publisher_id=NULL WHERE id=@editionId",
+                new { editionId = (Guid)ids.edition_id }, txn);
+        }
+
+        string? acqDate = string.IsNullOrWhiteSpace(dto.AcquisitionDate) ? null : dto.AcquisitionDate;
+        await db.ExecuteAsync(
+            @"UPDATE holdings SET
+                location=@Location, barcode=@Barcode, copy_notes=@CopyNotes,
+                availability_status=@AvailabilityStatus,
+                acquisition_date=CASE WHEN @acqDate IS NULL THEN NULL ELSE @acqDate::date END,
+                cover_url=@CoverUrl,
+                call_number=COALESCE(NULLIF(@CallNumber,''), call_number),
+                prefix=COALESCE(NULLIF(@Prefix,''), prefix),
+                book_number=COALESCE(NULLIF(@BookNumber,''), book_number)
+              WHERE id=@holdingId",
+            new { dto.Location, dto.Barcode, dto.CopyNotes, dto.AvailabilityStatus, acqDate, dto.CoverUrl,
+                  dto.CallNumber, dto.Prefix, dto.BookNumber, holdingId = (Guid)ids.holding_id },
+            txn);
+
+        txn.Commit();
+        return Results.NoContent();
+    }
+    catch
+    {
+        txn.Rollback();
+        throw;
+    }
+});
+
+// Update work by UUID — preferred endpoint; work.id is always present after loading edit data
+app.MapPut("/api/works/{workId:guid}", async (IDbConnection db, Guid workId, BookUpdateDto dto) =>
+{
+    const string lookupSql = @"
+        SELECT h.id AS holding_id, h.edition_id, e.work_id, e.publisher_id
+        FROM works w
+        JOIN editions e ON e.work_id = w.id
+        JOIN holdings h ON h.edition_id = e.id
+        WHERE w.id = @workId
+        LIMIT 1";
+    var ids = await db.QueryFirstOrDefaultAsync(lookupSql, new { workId });
+    if (ids == null) return Results.NotFound();
+
+    if (db.State != ConnectionState.Open) db.Open();
+    using var txn = db.BeginTransaction();
+    try
+    {
+        Guid? subjectId = Guid.TryParse(dto.SubjectId, out var sid) ? sid : (Guid?)null;
+        await db.ExecuteAsync(
+            @"UPDATE works SET title=@Title, subtitle=@Subtitle, description=@Description,
+                               work_type=@WorkType, series=@Series, language=@Language,
+                               subject_id=@subjectId
+              WHERE id=@workId",
+            new { dto.Title, dto.Subtitle, dto.Description, dto.WorkType, dto.Series, dto.Language, subjectId, workId },
+            txn);
+
+        await db.ExecuteAsync(
+            @"UPDATE editions SET publication_year=@PublicationYear, language=@Language,
+                                  isbn_10=@Isbn10, isbn_13=@Isbn13, lccn=@Lccn, oclc=@Oclc,
+                                  page_count=@PageCount, physical_description=@PhysicalDescription
+              WHERE id=@editionId",
+            new { dto.PublicationYear, dto.Language, dto.Isbn10, dto.Isbn13, dto.Lccn, dto.Oclc,
+                  dto.PageCount, dto.PhysicalDescription, editionId = (Guid)ids.edition_id },
+            txn);
+
+        if (!string.IsNullOrWhiteSpace(dto.PublisherName))
+        {
+            if (ids.publisher_id != null)
+            {
+                await db.ExecuteAsync(
+                    "UPDATE publishers SET name=@PublisherName, place=@PublisherPlace WHERE id=@publisherId",
+                    new { dto.PublisherName, dto.PublisherPlace, publisherId = (Guid)ids.publisher_id }, txn);
+            }
+            else
+            {
+                var newPublisherId = Guid.NewGuid();
+                await db.ExecuteAsync(
+                    "INSERT INTO publishers (id, name, place) VALUES (@newPublisherId, @PublisherName, @PublisherPlace)",
+                    new { newPublisherId, dto.PublisherName, dto.PublisherPlace }, txn);
+                await db.ExecuteAsync(
+                    "UPDATE editions SET publisher_id=@newPublisherId WHERE id=@editionId",
+                    new { newPublisherId, editionId = (Guid)ids.edition_id }, txn);
+            }
+        }
+        else if (ids.publisher_id != null)
+        {
+            await db.ExecuteAsync(
+                "UPDATE editions SET publisher_id=NULL WHERE id=@editionId",
+                new { editionId = (Guid)ids.edition_id }, txn);
         }
 
         string? acqDate = string.IsNullOrWhiteSpace(dto.AcquisitionDate) ? null : dto.AcquisitionDate;
@@ -984,6 +1118,74 @@ app.MapPost("/api/books/{callNumber}/files", async (IDbConnection db, HttpContex
     return Results.Ok(new { url = fileUrl });
 });
 
+// ── Auth / Users ─────────────────────────────────────────────────────────
+
+// POST /api/auth/me — upsert user on login, return their role
+app.MapPost("/api/auth/me", async (IDbConnection db, LoginDto dto) =>
+{
+    if (string.IsNullOrWhiteSpace(dto.Email)) return Results.BadRequest();
+    var email = dto.Email.Trim().ToLower();
+
+    var existing = await db.QueryFirstOrDefaultAsync(
+        "SELECT role FROM users WHERE email = @email", new { email });
+
+    if (existing == null)
+    {
+        await db.ExecuteAsync(
+            @"INSERT INTO users (google_sub, email, name, picture, last_login)
+              VALUES (@sub, @email, @name, @picture, now())",
+            new { sub = dto.Sub, email, name = dto.Name, picture = dto.Picture });
+        return Results.Ok(new { role = "public" });
+    }
+
+    await db.ExecuteAsync(
+        @"UPDATE users SET google_sub = @sub, name = @name, picture = @picture, last_login = now()
+          WHERE email = @email",
+        new { sub = dto.Sub, email, name = dto.Name, picture = dto.Picture });
+    return Results.Ok(new { role = (string)existing.role });
+});
+
+// GET /api/admin/users
+app.MapGet("/api/admin/users", async (IDbConnection db) =>
+{
+    var rows = await db.QueryAsync(
+        "SELECT id, email, name, role::text AS role, created_at, last_login FROM users ORDER BY email");
+    return Results.Ok(rows);
+});
+
+// POST /api/admin/users — create user by email (no Google login required yet)
+app.MapPost("/api/admin/users", async (IDbConnection db, NewUserDto dto) =>
+{
+    if (string.IsNullOrWhiteSpace(dto.Email)) return Results.BadRequest("Email required");
+    var valid = new[] { "public", "member", "staff", "admin" };
+    var role = valid.Contains(dto.Role ?? "") ? dto.Role! : "public";
+    var email = dto.Email.Trim().ToLower();
+
+    var exists = await db.ExecuteScalarAsync<int>(
+        "SELECT COUNT(*) FROM users WHERE email = @email", new { email });
+    if (exists > 0) return Results.Conflict("A user with that email already exists");
+
+    var id = await db.ExecuteScalarAsync<Guid>(
+        @"INSERT INTO users (email, name, role) VALUES (@email, @name, @role::user_role) RETURNING id",
+        new { email, name = string.IsNullOrWhiteSpace(dto.Name) ? (string?)null : dto.Name.Trim(), role });
+
+    var row = await db.QuerySingleAsync(
+        "SELECT id, email, name, role::text AS role, created_at, last_login FROM users WHERE id = @id",
+        new { id });
+    return Results.Ok(row);
+});
+
+// PUT /api/admin/users/{id}/role
+app.MapPut("/api/admin/users/{id:guid}/role", async (IDbConnection db, Guid id, UserRoleDto dto) =>
+{
+    var valid = new[] { "public", "member", "staff", "admin" };
+    if (!valid.Contains(dto.Role)) return Results.BadRequest("Invalid role");
+    await db.ExecuteAsync(
+        "UPDATE users SET role = @role::user_role WHERE id = @id",
+        new { role = dto.Role, id });
+    return Results.NoContent();
+});
+
 app.MapFallbackToFile("index.html");
 
 app.Run();
@@ -1039,3 +1241,6 @@ record SubjectDto(string Term, string Prefix, int LastBookNumber);
 record DigitalCopyDto(string? Provider, string Url, string? Format, string? Access);
 record NewHoldingDto(string Prefix, string BookNumber);
 record AuthorDto(string Name, string? Role);
+record LoginDto(string Sub, string Email, string Name, string? Picture);
+record UserRoleDto(string Role);
+record NewUserDto(string Email, string? Name, string? Role);

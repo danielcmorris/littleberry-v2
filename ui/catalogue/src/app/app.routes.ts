@@ -11,15 +11,17 @@ import { CallbackComponent } from './catalogue/callback/callback.component';
 import { AdminDashboardComponent } from './admin/admin-dashboard.component';
 import { AdminCatalogComponent } from './admin/admin-catalog.component';
 import { AdminSubjectsComponent } from './admin/admin-subjects.component';
-import { authGuard } from './core/auth.guard';
+import { AdminUsersComponent } from './admin/admin-users.component';
+import { authGuard, staffGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: HomePageComponent },
   { path: 'callback', component: CallbackComponent },
-  { path: 'admin', component: AdminDashboardComponent, canActivate: [authGuard] },
-  { path: 'admin/catalog', component: AdminCatalogComponent, canActivate: [authGuard] },
-  { path: 'admin/subjects', component: AdminSubjectsComponent, canActivate: [authGuard] },
-  { path: 'admin/new', component: BookEditComponent, canActivate: [authGuard] },
+  { path: 'admin', component: AdminDashboardComponent, canActivate: [staffGuard] },
+  { path: 'admin/catalog', component: AdminCatalogComponent, canActivate: [staffGuard] },
+  { path: 'admin/subjects', component: AdminSubjectsComponent, canActivate: [staffGuard] },
+  { path: 'admin/users', component: AdminUsersComponent, canActivate: [staffGuard] },
+  { path: 'admin/new', component: BookEditComponent, canActivate: [staffGuard] },
   { path: 'authors', component: AuthorIndexComponent },
   { path: 'authors/:letter', component: AuthorIndexComponent },
   { path: 'subjects', component: SubjectTilesComponent },
