@@ -42,7 +42,7 @@ export class BookCardComponent {
 
   bookRoute = computed(() => {
     const b = this.book();
-    return b.seq_id ? ['/', workPath(b.seq_id, b.title)] : ['/', b.call_number];
+    return b.seq_id ? ['/','book', workPath(b.seq_id, b.title)] : ['/', b.call_number];
   });
 
   isNew(): boolean {
