@@ -1,4 +1,5 @@
 import { Component, input, computed, inject } from '@angular/core';
+import { workPath } from '../../core/slugify';
 import { RouterLink } from '@angular/router';
 import { Book } from '../../core/book.model';
 import { LangService } from '../../core/lang.service';
@@ -41,9 +42,7 @@ export class BookCardComponent {
 
   bookRoute = computed(() => {
     const b = this.book();
-    const prefix = b.prefix || '';
-    const num = prefix ? b.call_number.substring(prefix.length) : b.call_number;
-    return ['/', prefix || b.call_number, num || '_'];
+    return b.seq_id ? ['/', workPath(b.seq_id, b.title)] : ['/', b.call_number];
   });
 
   isNew(): boolean {

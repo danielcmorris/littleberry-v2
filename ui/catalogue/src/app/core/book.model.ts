@@ -1,6 +1,7 @@
 export interface Book {
   id: string;
   book_id: number | null;
+  seq_id: number | null;
   call_number: string;
   prefix: string;
   title: string;

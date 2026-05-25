@@ -90,6 +90,7 @@ function mapBook(r: any): Book {
   return {
     id: r.id,
     book_id: r.bookId ?? null,
+    seq_id: r.seqId ?? null,
     call_number: r.callNumber ?? '',
     prefix: r.prefix ?? '',
     title: r.title ?? '',
@@ -168,6 +169,10 @@ export class BooksService {
     return this.http.get<any>(`${API}/books/${encodeURIComponent(callNumber)}`).pipe(
       map(mapBook)
     );
+  }
+
+  getWorkBySeqId(seqId: number): Observable<Book> {
+    return this.http.get<any>(`${API}/works/${seqId}`).pipe(map(mapBook));
   }
 
   getBookForEdit(callNumber: string): Observable<BookEditData> {

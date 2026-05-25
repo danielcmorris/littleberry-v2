@@ -1,4 +1,5 @@
 import { Component, input, inject, signal, computed, effect } from '@angular/core';
+import { workPath } from '../../core/slugify';
 import { RouterLink } from '@angular/router';
 import { BooksService } from '../../core/books.service';
 import { LangService } from '../../core/lang.service';
@@ -152,6 +153,7 @@ import { CoverComponent } from '../cover/cover.component';
 export class BookDetailComponent {
   prefix = input<string>('');
   bookNumber = input<string>('');
+  workSlug = input<string>('');
   from = input<string>('');
   ctx = input<string>('');
 
@@ -174,13 +176,21 @@ export class BookDetailComponent {
 
   constructor() {
     effect((onCleanup) => {
+      const slug = this.workSlug();
       const callNumber = this.prefix() + this.bookNumber();
-      if (!callNumber) return;
+      if (!slug && !callNumber) return;
+
       this.loading.set(true);
       this.notFound.set(false);
       this.book.set(null);
       this.otherBooks.set([]);
-      const sub = this.svc.getBook(callNumber).subscribe({
+
+      const seqId = slug ? parseInt(slug.split('-')[0], 10) : NaN;
+      const fetch$ = !isNaN(seqId)
+        ? this.svc.getWorkBySeqId(seqId)
+        : this.svc.getBook(callNumber);
+
+      const sub = fetch$.subscribe({
         next: b => {
           this.book.set(b);
           this.loading.set(false);
@@ -200,9 +210,7 @@ export class BookDetailComponent {
   }
 
   otherBookRoute(b: Book): string[] {
-    const prefix = b.prefix || '';
-    const num = prefix ? b.call_number.substring(prefix.length) : b.call_number;
-    return ['/', prefix || b.call_number, num || '_'];
+    return b.seq_id ? ['/', workPath(b.seq_id, b.title)] : ['/', b.call_number];
   }
 
   langLabel(code: string): string {

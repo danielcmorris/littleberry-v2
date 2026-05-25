@@ -304,7 +304,7 @@ app.MapGet("/api/books", async (IDbConnection db,
     var dataSql = $@"
         SELECT DISTINCT ON (h.id)
             h.id, h.book_id, h.call_number, h.prefix, h.cover_url,
-            w.id AS work_id, w.title,
+            w.id AS work_id, w.seq_id, w.title,
             a.name AS author,
             s.term AS subject, s.prefix AS subject_prefix,
             e.publication_year AS year, e.language,
@@ -341,7 +341,7 @@ app.MapGet("/api/books/{callNumber}", async (IDbConnection db, string callNumber
 {
     const string sql = @"
         SELECT h.id, h.book_id, h.call_number, h.prefix, h.cover_url,
-               w.id AS work_id, w.title, w.subtitle, w.description, w.series,
+               w.id AS work_id, w.seq_id, w.title, w.subtitle, w.description, w.series,
                a.name AS author,
                s.term AS subject, s.prefix AS subject_prefix,
                e.publication_year AS year, e.language,
@@ -374,13 +374,61 @@ app.MapGet("/api/books/{callNumber}", async (IDbConnection db, string callNumber
     var book = MapBook(row);
     return Results.Ok(new {
         book.id, book.bookId, book.callNumber, book.prefix, book.coverUrl, book.hasCover,
-        book.workId, book.title,
+        book.workId, book.seqId, book.title,
         subtitle   = (string?)row.subtitle,
         description = (string?)row.description,
         series     = (string?)row.series,
         isbn10     = (string?)row.isbn_10,
         isbn13     = (string?)row.isbn_13,
         pageCount  = row.page_count == null ? (int?)null : (int)row.page_count,
+        book.author, book.subject, book.subjectPrefix,
+        book.year, book.language, book.publisher, book.publisherCity, book.notes,
+        digitalCopies
+    });
+});
+
+// Book detail by seq_id (slug routing)
+app.MapGet("/api/works/{seqId:long}", async (IDbConnection db, long seqId) =>
+{
+    const string sql = @"
+        SELECT h.id, h.book_id, h.call_number, h.prefix, h.cover_url,
+               w.id AS work_id, w.seq_id, w.title, w.subtitle, w.description, w.series,
+               a.name AS author,
+               s.term AS subject, s.prefix AS subject_prefix,
+               e.publication_year AS year, e.language,
+               e.isbn_10, e.isbn_13, e.page_count, e.physical_description,
+               p.name AS publisher, p.place AS publisher_city,
+               h.book_number
+        FROM works w
+        JOIN editions e ON e.work_id = w.id
+        JOIN holdings h ON h.edition_id = e.id
+        LEFT JOIN work_authors wa ON wa.work_id = w.id AND wa.ord = 1
+        LEFT JOIN authors a ON a.id = wa.author_id
+        LEFT JOIN subjects s ON s.id = w.subject_id
+        LEFT JOIN publishers p ON p.id = e.publisher_id
+        WHERE w.seq_id = @seqId
+        LIMIT 1";
+
+    var row = await db.QueryFirstOrDefaultAsync(sql, new { seqId });
+    if (row == null) return Results.NotFound();
+
+    const string dcSql = @"
+        SELECT dc.url FROM digital_copies dc
+        JOIN editions e ON e.id = dc.edition_id
+        JOIN works w ON w.id = e.work_id
+        WHERE w.seq_id = @seqId";
+    var digitalCopies = (await db.QueryAsync<string>(dcSql, new { seqId })).ToList();
+
+    var book = MapBook(row);
+    return Results.Ok(new {
+        book.id, book.bookId, book.callNumber, book.prefix, book.coverUrl, book.hasCover,
+        book.workId, book.seqId, book.title,
+        subtitle    = (string?)row.subtitle,
+        description = (string?)row.description,
+        series      = (string?)row.series,
+        isbn10      = (string?)row.isbn_10,
+        isbn13      = (string?)row.isbn_13,
+        pageCount   = row.page_count == null ? (int?)null : (int)row.page_count,
         book.author, book.subject, book.subjectPrefix,
         book.year, book.language, book.publisher, book.publisherCity, book.notes,
         digitalCopies
@@ -896,6 +944,7 @@ static dynamic MapBook(dynamic r) => new {
     coverUrl = (string?)r.cover_url,
     hasCover = r.cover_url != null && !string.IsNullOrEmpty((string?)r.cover_url),
     workId = (Guid)r.work_id,
+    seqId = ((IDictionary<string, object>)r).TryGetValue("seq_id", out var sid) ? (long?)sid : null,
     added = DateTime.UtcNow.ToString("yyyy-MM-dd"),
     hasDigital = ((IDictionary<string, object>)r).TryGetValue("has_digital", out var hd) && hd is true
 };
