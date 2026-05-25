@@ -7,6 +7,7 @@ using Dapper;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("/run/secrets/appsettings.json", optional: true, reloadOnChange: false);
 
 builder.Services.AddScoped<IDbConnection>(_ =>
     new NpgsqlConnection(builder.Configuration.GetConnectionString("Postgres")));
