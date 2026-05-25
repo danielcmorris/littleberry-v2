@@ -875,6 +875,8 @@ app.MapPost("/api/books/{callNumber}/files", async (IDbConnection db, HttpContex
     return Results.Ok(new { url = fileUrl });
 });
 
+app.MapFallbackToFile("index.html");
+
 app.Run();
 
 static dynamic MapBook(dynamic r) => new {

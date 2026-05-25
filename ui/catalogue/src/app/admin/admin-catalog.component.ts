@@ -14,7 +14,7 @@ import {
 } from 'ag-grid-community';
 import { AdminCatalogStateService } from './admin-catalog-state.service';
 
-const API = 'http://localhost:5200';
+const API = '';
 
 interface CatalogRow {
   id: string;

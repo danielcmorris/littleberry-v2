@@ -58,7 +58,7 @@ export interface DigitalCopyDto {
   provider: string; url: string; format: string; access: string;
 }
 
-const API = 'http://localhost:5200/api';
+const API = '/api';
 
 const SUBJECT_COLORS: Record<string, string> = {
   'Azores': '#1d3a6e', 'Biography': '#234876', 'Brazil': '#2a5187',

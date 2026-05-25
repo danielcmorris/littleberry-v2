@@ -12,7 +12,7 @@ interface SubjectRow {
   bookCount: number;
 }
 
-const API = 'http://localhost:5200/api';
+const API = '/api';
 
 @Component({
   selector: 'app-admin-subjects',

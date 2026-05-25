@@ -116,7 +116,7 @@ export class AdminDashboardComponent implements OnInit {
   stats = signal<AdminStats | null>(null);
 
   ngOnInit() {
-    this.http.get<AdminStats>('http://localhost:5200/api/admin/stats').subscribe({
+    this.http.get<AdminStats>('/api/admin/stats').subscribe({
       next: s => this.stats.set(s),
     });
   }
