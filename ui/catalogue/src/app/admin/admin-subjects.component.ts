@@ -1,4 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
+import { environment } from '../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +13,7 @@ interface SubjectRow {
   bookCount: number;
 }
 
-const API = '/api';
+const API = environment.apiUrl;
 
 @Component({
   selector: 'app-admin-subjects',

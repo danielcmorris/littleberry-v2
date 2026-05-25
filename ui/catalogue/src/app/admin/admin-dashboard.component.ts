@@ -1,4 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
+import { environment } from '../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
@@ -116,7 +117,7 @@ export class AdminDashboardComponent implements OnInit {
   stats = signal<AdminStats | null>(null);
 
   ngOnInit() {
-    this.http.get<AdminStats>('/api/admin/stats').subscribe({
+    this.http.get<AdminStats>(`${environment.apiUrl}/admin/stats`).subscribe({
       next: s => this.stats.set(s),
     });
   }

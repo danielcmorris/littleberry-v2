@@ -1,4 +1,5 @@
 import { Component, inject, signal, OnDestroy, OnInit } from '@angular/core';
+import { environment } from '../../environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { RouterLink } from '@angular/router';
@@ -14,7 +15,7 @@ import {
 } from 'ag-grid-community';
 import { AdminCatalogStateService } from './admin-catalog-state.service';
 
-const API = '';
+const API = environment.apiUrl;
 
 interface CatalogRow {
   id: string;
@@ -345,7 +346,7 @@ export class AdminCatalogComponent implements OnInit, OnDestroy {
           }
         }
 
-        this.http.get<any>(`${API}/api/admin/catalog`, { params: hp }).subscribe({
+        this.http.get<any>(`${API}/admin/catalog`, { params: hp }).subscribe({
           next: data => {
             this.total.set(data.total);
             params.success({ rowData: data.items, rowCount: data.total });
